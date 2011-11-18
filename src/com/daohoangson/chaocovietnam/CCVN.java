@@ -4,27 +4,42 @@ import java.util.HashMap;
 import java.util.Iterator;
 
 import com.daohoangson.chaocovietnam.AudioService.AudioServiceBinder;
+import com.daohoangson.chaocovietnam.SocketService.SocketServiceBinder;
 
 import android.app.Activity;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.PowerManager;
 import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.TextView;
 
-public class CCVN extends Activity implements OnClickListener, ServiceConnection {
+public class CCVN extends Activity implements OnClickListener, ServiceConnection, SocketService.SocketServiceListener {
 	Button btnStart = null;
 	TextView lblLyrics = null;
 	
-	private AudioService.AudioServiceBinder audioService = null;
-	private Handler handler = new Handler();
-	private HashMap<Float, Integer> lyrics = new HashMap<Float, Integer>();
+	protected PowerManager.WakeLock wakeLock;
+	protected WifiManager.MulticastLock wifiMulticastLock;
+	
+	protected AudioService.AudioServiceBinder audioService = null;
+	protected Handler audioServiceHandler = new Handler();
+	
+	protected SocketService.SocketServiceBinder socketService = null;
+	protected Handler socketServiceHandler = new Handler();
+	protected long broadcastSentTime = 0;
+	protected long syncBaseTime = 0;
+	protected String syncDeviceName = null;
+	protected long syncUpdatedTime = 0;
+	
+	protected HashMap<Float, Integer> lyrics = new HashMap<Float, Integer>();
 	
     /** Called when the activity is first created. */
     @Override
@@ -37,8 +52,14 @@ public class CCVN extends Activity implements OnClickListener, ServiceConnection
         lblLyrics = (TextView) findViewById(R.id.lblLyrics);
         lblLyrics.setText("");
         
+        PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        wakeLock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, Configuration.TAG);
+        WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+        wifiMulticastLock = wifiManager.createMulticastLock(Configuration.TAG);
+        
         startService(new Intent(this, AudioService.class));
         bindService(new Intent(this, AudioService.class), this, BIND_AUTO_CREATE);
+        bindService(new Intent(this, SocketService.class), this, BIND_AUTO_CREATE);
         
         lyrics.put(new Float(8.0f), new Integer(R.string.lyrics_0080));
         lyrics.put(new Float(11.5f), new Integer(R.string.lyrics_0115));
@@ -66,9 +87,25 @@ public class CCVN extends Activity implements OnClickListener, ServiceConnection
         lyrics.put(new Float(127.5f), new Integer(R.string.lyrics_1275));
     }
     
+    protected void onResume() {
+    	super.onResume();
+    	
+    	wakeLock.acquire();
+    	wifiMulticastLock.acquire();
+    }
+    
+    protected void onPause() {
+    	super.onPause();
+    	
+    	wakeLock.release();
+    	wifiMulticastLock.release();
+    }
+    
     public void onDestroy() {
     	unbindService(this);
-    	handler.removeCallbacks(audioServiceTick);
+    	
+    	audioServiceHandler.removeCallbacks(audioServiceTick);
+    	socketServiceHandler.removeCallbacks(socketServiceTick);
     	
     	super.onDestroy();
     }
@@ -78,11 +115,16 @@ public class CCVN extends Activity implements OnClickListener, ServiceConnection
     		audioService.play();
     	}
     	
-    	handler.removeCallbacks(audioServiceTick);
-		handler.postDelayed(audioServiceTick, 100);
+    	audioServiceHandler.removeCallbacks(audioServiceTick);
+		audioServiceHandler.postDelayed(audioServiceTick, 100);
 		
     	btnStart.setText(R.string.pause);
     	lblLyrics.setText("");
+    	
+    	broadcastSentTime = 0;
+    	syncBaseTime = 0;
+    	syncDeviceName = null;
+    	syncUpdatedTime = 0;
     }
     
     protected void pausePlaying(boolean callService) {
@@ -90,7 +132,7 @@ public class CCVN extends Activity implements OnClickListener, ServiceConnection
     		audioService.pause();
     	}
     	
-    	handler.removeCallbacks(audioServiceTick);
+    	audioServiceHandler.removeCallbacks(audioServiceTick);
     	
     	btnStart.setText(R.string.play);
     	lblLyrics.setText("");
@@ -111,13 +153,18 @@ public class CCVN extends Activity implements OnClickListener, ServiceConnection
 
 	@Override
 	public void onServiceConnected(ComponentName name, IBinder service) {
-		audioService = (AudioServiceBinder) service;
-		
-		// this looks silly but we call it to initialize components' states
-		if (audioService.isPlaying()) {
-			startPlaying(false);
-		} else {
-			pausePlaying(false);
+		if (service instanceof AudioServiceBinder) {
+			audioService = (AudioServiceBinder) service;
+			
+			// this looks silly but we call it to initialize components' states
+			if (audioService.isPlaying()) {
+				startPlaying(false);
+			} else {
+				pausePlaying(false);
+			}
+		} else if (service instanceof SocketServiceBinder) {
+			socketService = (SocketServiceBinder) service;
+			socketService.setListener(this);
 		}
 	}
 
@@ -127,33 +174,27 @@ public class CCVN extends Activity implements OnClickListener, ServiceConnection
 		
 	}
 	
-	private Runnable audioServiceTick = new Runnable() {
+	protected Runnable audioServiceTick = new Runnable() {
 
 		@Override
 		public void run() {
 			if (audioService != null) {
-				float currentTime = audioService.getCurrentPosition() / 1000.0f;
-				float maxTime = 0;
-				float time = 0;
-				int maxLyric = 0;
+				float seconds = audioService.getCurrentPosition() / 1000.0f;
 				
-				Iterator<Float> i = lyrics.keySet().iterator();
-				while (i.hasNext()) {
-					time = i.next();
-					if (currentTime > time && maxTime < time) {
-						maxTime = time;
-						maxLyric = lyrics.get(time);
-					}
-				}
-				
-				if (maxLyric > 0) {
-					lblLyrics.setText(maxLyric);
-				} else {
-					lblLyrics.setText("");
-				}
+				updateLyrics(seconds, null);
 				
 				if (audioService.isPlaying()) {
-					handler.postDelayed(this, 500);
+					if (socketService != null) {
+						long currentTime = System.currentTimeMillis();
+						if (currentTime - broadcastSentTime > Configuration.SYNC_BROADCAST_STEP) {
+							// it's time to broadcast
+							socketService.broadcast(seconds);
+							// marks as sent
+							broadcastSentTime = currentTime;
+						}
+					}
+					
+					audioServiceHandler.postDelayed(this, Configuration.TIMER_STEP);
 				} else {
 					pausePlaying(false);
 				}
@@ -161,4 +202,87 @@ public class CCVN extends Activity implements OnClickListener, ServiceConnection
 		}
 		
 	};
+	
+	protected Runnable socketServiceTick = new Runnable() {
+
+		@Override
+		public void run() {
+			if (syncBaseTime == 0 || (audioService != null && audioService.isPlaying())) {
+				// nothing to do here
+				return;
+			}
+			
+			long currentTime = System.currentTimeMillis();
+			long baseOffset = currentTime - syncBaseTime;
+			long updatedOffset = currentTime - syncUpdatedTime;
+			
+			if (updatedOffset > Configuration.SYNC_MAX_DURATION) {
+				// no signal from the host for too long
+		        // reset control state and stop looping
+				pausePlaying(false);
+				return;
+			}
+			
+			// updates the lyrics using the normal flow code
+			updateLyrics(baseOffset / 1000.0f, syncDeviceName);
+			
+			// schedule this function again...
+			socketServiceHandler.postDelayed(this, Configuration.TIMER_STEP);
+		}
+		
+	};
+	
+	protected void updateLyrics(float seconds, String fromDeviceName) {
+		float maxTime = 0;
+		float time = 0;
+		int maxLyric = 0;
+		
+		Iterator<Float> i = lyrics.keySet().iterator();
+		while (i.hasNext()) {
+			time = i.next();
+			if (seconds > time && maxTime < time) {
+				maxTime = time;
+				maxLyric = lyrics.get(time);
+			}
+		}
+		
+		if (maxLyric > 0) {
+			if (fromDeviceName == null) {
+				lblLyrics.setText(maxLyric);
+			} else {
+				// this is from another device (sync mode)
+		        // appends the device name
+				String line = getResources().getString(maxLyric);
+				String formatted = String.format("%s (%s)", line, fromDeviceName);
+				lblLyrics.setText(formatted);
+			}
+		} else {
+			lblLyrics.setText("");
+		}
+	}
+
+	@Override
+	public void onMessage(final float seconds, final String name) {
+		socketServiceHandler.post(new Runnable() {
+
+			@Override
+			public void run() {
+				if (audioService == null || audioService.isPlaying() == false) {
+					// only works if the player is not playing
+	                // this check will keeps us from working with our own broadcast message
+	                // that's silly!
+					long currentTime = System.currentTimeMillis();
+					if (currentTime - syncUpdatedTime > 1000) {
+						// checks to deal with double udp message (ipv4 and ipv6)
+						syncBaseTime = currentTime - ((long) (seconds * 1000));
+						syncDeviceName = name;
+						syncUpdatedTime = currentTime;
+						
+						socketServiceHandler.post(socketServiceTick);
+					}
+				}
+			}
+			
+		});
+	}
 }
