@@ -21,12 +21,13 @@ import android.os.IBinder;
 import android.util.Log;
 
 public class SocketService extends Service {
+	private final static String TAG = "SocketService";
+
 	SocketServiceBinder binder = new SocketServiceBinder();
-	SocketServiceRunnable thread = new SocketServiceRunnable();
+	ReceiverRunnable receiverRunnable = new ReceiverRunnable();
+	SenderRunnable senderRunnable = new SenderRunnable();
 	InetAddress broadcastAddress;
-	DatagramSocket socketReceiver;
-	DatagramSocket socketSender;
-	
+
 	@Override
 	public IBinder onBind(Intent intent) {
 		return binder;
@@ -34,47 +35,41 @@ public class SocketService extends Service {
 
 	@Override
 	public void onCreate() {
-		 try {
-			socketReceiver = new DatagramSocket(Configuration.PORT);
-			socketReceiver.setBroadcast(true);
-			socketReceiver.setReuseAddress(true);
-			//socketReceiver.
-			
-			socketSender = new DatagramSocket();
-			socketSender.setBroadcast(true);
-		} catch (SocketException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		
-		WifiManager wifi = (WifiManager) getSystemService(Context.WIFI_SERVICE);
-		DhcpInfo dhcp = wifi.getDhcpInfo();
+		new Thread(receiverRunnable).start();
+		new Thread(senderRunnable).start();
+
 		try {
-			int broadcast = (dhcp.ipAddress & dhcp.netmask) | ~dhcp.netmask;
-			byte[] quads = new byte[4];
-			for (int k = 0; k < quads.length; k++) {
-				quads[k] = (byte) ((broadcast >> (k*8)) & 0xFF);
-				quads[k] = (byte) 255;
+			WifiManager wifi = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+			DhcpInfo dhcp = wifi.getDhcpInfo();
+			try {
+				int broadcast = (dhcp.ipAddress & dhcp.netmask) | ~dhcp.netmask;
+				byte[] quads = new byte[4];
+				for (int k = 0; k < quads.length; k++) {
+					quads[k] = (byte) ((broadcast >> (k * 8)) & 0xFF);
+					quads[k] = (byte) 255;
+				}
+
+				broadcastAddress = InetAddress.getByAddress(quads);
+			} catch (UnknownHostException e) {
+				e.printStackTrace();
+
+				broadcastAddress = null;
 			}
-			
-			broadcastAddress = InetAddress.getByAddress(quads);
-		} catch (UnknownHostException e) {
-			// TODO Auto-generated catch block
+		} catch (Exception e) {
 			e.printStackTrace();
-			
-			broadcastAddress = null;
 		}
-		
-		// starts the thread
-		new Thread(thread).start();
 	}
-	
+
 	@Override
 	public void onDestroy() {
-		socketReceiver.close();
-		socketSender.close();
-		thread.scheduleStop();
-		
+		if (receiverRunnable != null) {
+			receiverRunnable.scheduleStop();
+		}
+
+		if (senderRunnable != null) {
+			senderRunnable.scheduleStop();
+		}
+
 		super.onDestroy();
 	}
 
@@ -85,27 +80,104 @@ public class SocketService extends Service {
 			hashmap.put(Configuration.DATA_KEY_NAME, "Android");
 			JSONObject json = new JSONObject(hashmap);
 			String data = json.toString();
-			DatagramPacket packet = new DatagramPacket(data.getBytes(), data.length(), broadcastAddress, Configuration.PORT);
-			
-			try {
-				socketSender.send(packet);
-				
-				Log.d("CCVN", "Sent " + data);
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+
+			if (senderRunnable != null) {
+				senderRunnable.packet = new DatagramPacket(data.getBytes(),
+						data.length(), broadcastAddress, Configuration.PORT);
 			}
 		}
-		
+
 		public void setListener(SocketServiceListener listener) {
-			thread.listener = listener;
+			receiverRunnable.listener = listener;
 		}
 	}
-	
-	class SocketServiceRunnable implements Runnable {
-		SocketServiceListener listener = null;
+
+	class ReceiverRunnable implements Runnable {
+		protected DatagramSocket socketReceiver;
+		protected SocketServiceListener listener = null;
 		protected boolean flagStop = false;
-		
+
+		public void scheduleStop() {
+			flagStop = true;
+		}
+
+		@Override
+		public void run() {
+			boolean connected = false;
+			int count = 3;
+
+			while (!connected && count > 0) {
+				// we may have to retry a few times
+				socketReceiver = null;
+
+				try {
+					socketReceiver = new DatagramSocket(Configuration.PORT);
+					socketReceiver.setBroadcast(true);
+					socketReceiver.setReuseAddress(true);
+
+					connected = true;
+
+					Log.i(TAG, "receiver socket established");
+				} catch (SocketException e) {
+					e.printStackTrace();
+
+					if (socketReceiver != null) {
+						socketReceiver.close();
+					}
+				}
+
+				count--;
+			}
+
+			if (socketReceiver == null || !socketReceiver.isBound()) {
+				// something is wrong...
+				Log.e(TAG, "receiver socket could not be established");
+
+				return;
+			}
+
+			try {
+				while (!flagStop) {
+					byte[] buf = new byte[256];
+					DatagramPacket packet = new DatagramPacket(buf, buf.length);
+					socketReceiver.receive(packet);
+
+					if (listener != null) {
+						String string = new String(packet.getData());
+
+						Log.v(TAG, "packet received: " + string);
+
+						JSONObject jsonObject = new JSONObject(string);
+						float seconds = (float) jsonObject
+								.getDouble(Configuration.DATA_KEY_SECONDS);
+						String name = jsonObject
+								.getString(Configuration.DATA_KEY_NAME);
+						listener.onMessage(seconds, name);
+					}
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			} catch (JSONException e) {
+				e.printStackTrace();
+			}
+
+			try {
+				socketReceiver.close();
+			} catch (Exception e) {
+				// this is expected
+			}
+		}
+	}
+
+	interface SocketServiceListener {
+		public void onMessage(float seconds, String name);
+	}
+
+	class SenderRunnable implements Runnable {
+		DatagramSocket socketSender;
+		protected DatagramPacket packet = null;
+		protected boolean flagStop = false;
+
 		public void scheduleStop() {
 			flagStop = true;
 		}
@@ -113,33 +185,47 @@ public class SocketService extends Service {
 		@Override
 		public void run() {
 			try {
+				socketSender = new DatagramSocket();
+				socketSender.setBroadcast(true);
+
+				Log.i(TAG, "sender socket established");
+			} catch (Exception e) {
+				e.printStackTrace();
+
+				if (socketSender != null) {
+					socketSender.close();
+				}
+			}
+
+			if (socketSender == null) {
+				// something is wrong...
+				Log.e(TAG, "sender socket could not be established");
+
+				return;
+			}
+
+			try {
 				while (!flagStop) {
-					byte[] buf = new byte[256];
-					DatagramPacket packet = new DatagramPacket(buf, buf.length);
-					socketReceiver.receive(packet);
-					
-					if (listener != null) {
-						String string = new String(packet.getData());
+					if (packet != null) {
+						socketSender.send(packet);
+						packet = null;
 						
-						Log.d("CCVN", "Received " + string);
-						
-						JSONObject jsonObject = new JSONObject(string);
-						float seconds = (float) jsonObject.getDouble(Configuration.DATA_KEY_SECONDS);
-						String name = jsonObject.getString(Configuration.DATA_KEY_NAME);
-						listener.onMessage(seconds, name);
+						Log.v(TAG, "broadcasted a packet");
 					}
+					
+					Thread.sleep(100);
 				}
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
-			} catch (JSONException e) {
-				// TODO Auto-generated catch block
+			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
+
+			try {
+				socketSender.close();
+			} catch (Exception e) {
+				// this is expected
+			}
 		}
-	}
-	
-	interface SocketServiceListener {
-		public void onMessage(float seconds, String name);
 	}
 }

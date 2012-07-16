@@ -24,6 +24,8 @@ import android.widget.TextView;
 
 public class CCVN extends Activity implements OnClickListener,
 		ServiceConnection, SocketService.SocketServiceListener {
+	private final static String TAG = "CCVN/Main";
+
 	Button btnStart = null;
 	TextView lblLyrics = null;
 
@@ -54,10 +56,9 @@ public class CCVN extends Activity implements OnClickListener,
 		lblLyrics.setText("");
 
 		PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
-		wakeLock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK,
-				Configuration.TAG);
+		wakeLock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, TAG);
 		WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
-		wifiMulticastLock = wifiManager.createMulticastLock(Configuration.TAG);
+		wifiMulticastLock = wifiManager.createMulticastLock(TAG);
 
 		startService(new Intent(this, AudioService.class));
 		bindService(new Intent(this, AudioService.class), this,
@@ -76,7 +77,7 @@ public class CCVN extends Activity implements OnClickListener,
 		lyrics.put(Float.valueOf(48.5f), Integer.valueOf(R.string.lyrics_0485));
 		lyrics.put(Float.valueOf(52.5f), Integer.valueOf(R.string.lyrics_0525));
 		lyrics.put(Float.valueOf(60.0f), Integer.valueOf(R.string.lyrics_0600));
-		
+
 		lyrics.put(Float.valueOf(67.0f), Integer.valueOf(R.string.lyrics_0670));
 		lyrics.put(Float.valueOf(70.0f), Integer.valueOf(R.string.lyrics_0700));
 		lyrics.put(Float.valueOf(72.5f), Integer.valueOf(R.string.lyrics_0725));
@@ -91,6 +92,7 @@ public class CCVN extends Activity implements OnClickListener,
 		lyrics.put(Float.valueOf(127.5f), Integer.valueOf(R.string.lyrics_1275));
 	}
 
+	@Override
 	protected void onResume() {
 		super.onResume();
 
@@ -98,6 +100,7 @@ public class CCVN extends Activity implements OnClickListener,
 		wifiMulticastLock.acquire();
 	}
 
+	@Override
 	protected void onPause() {
 		super.onPause();
 
@@ -105,6 +108,7 @@ public class CCVN extends Activity implements OnClickListener,
 		wifiMulticastLock.release();
 	}
 
+	@Override
 	public void onDestroy() {
 		unbindService(this);
 

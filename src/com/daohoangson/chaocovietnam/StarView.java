@@ -35,7 +35,7 @@ public class StarView extends RelativeLayout {
 		float centerX = canvas.getWidth() / 2.0f;
 		float centerY = canvas.getHeight() / 2.0f;
 		float ratio = (canvas.getWidth() * 1.0f) / canvas.getHeight();
-		float radius = (ratio < 0.666f) ? (canvas.getHeight() * 0.3f) : (canvas.getWidth() * 0.2f);
+		float radius = (ratio < 1.0f) ? (canvas.getHeight() * 0.3f) : (canvas.getWidth() * 0.2f);
 		float xFirst = 0, yFirst = 0;
 
 		float x, y, radian;
