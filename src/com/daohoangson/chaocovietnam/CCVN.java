@@ -9,6 +9,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.pm.ActivityInfo;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -58,6 +59,8 @@ public class CCVN extends Activity implements OnClickListener,
 
 		WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
 		wifiMulticastLock = wifiManager.createMulticastLock(TAG);
+
+		setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR);
 
 		startService(new Intent(this, AudioService.class));
 		bindService(new Intent(this, AudioService.class), this,
