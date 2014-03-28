@@ -3,12 +3,14 @@ package com.daohoangson.chaocovietnam;
 import java.util.HashMap;
 import java.util.Iterator;
 
+import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.net.wifi.WifiManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -24,6 +26,7 @@ public class CCVN extends Activity implements OnClickListener,
 		ServiceConnection, SocketService.SocketServiceListener {
 	private final static String TAG = "CCVN/Main";
 
+	StarView starView = null;
 	Button btnStart = null;
 	TextView lblLyrics = null;
 
@@ -47,6 +50,7 @@ public class CCVN extends Activity implements OnClickListener,
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.main);
 
+		starView = (StarView) findViewById(R.id.star);
 		btnStart = (Button) findViewById(R.id.btnStart);
 		btnStart.setOnClickListener(this);
 		lblLyrics = (TextView) findViewById(R.id.lblLyrics);
@@ -109,6 +113,21 @@ public class CCVN extends Activity implements OnClickListener,
 		socketServiceHandler.removeCallbacks(socketServiceTick);
 
 		super.onDestroy();
+	}
+
+	@TargetApi(Build.VERSION_CODES.KITKAT)
+	@Override
+	public void onWindowFocusChanged(boolean hasFocus) {
+		super.onWindowFocusChanged(hasFocus);
+
+		if (hasFocus && Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+			starView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+					| View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+					| View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+					| View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+					| View.SYSTEM_UI_FLAG_FULLSCREEN
+					| View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+		}
 	}
 
 	protected void startPlaying(boolean callService) {
