@@ -3,9 +3,6 @@ package com.daohoangson.chaocovietnam;
 import java.util.HashMap;
 import java.util.Iterator;
 
-import com.daohoangson.chaocovietnam.AudioService.AudioServiceBinder;
-import com.daohoangson.chaocovietnam.SocketService.SocketServiceBinder;
-
 import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Context;
@@ -15,12 +12,13 @@ import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
-import android.os.PowerManager;
-import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.TextView;
+
+import com.daohoangson.chaocovietnam.AudioService.AudioServiceBinder;
+import com.daohoangson.chaocovietnam.SocketService.SocketServiceBinder;
 
 public class CCVN extends Activity implements OnClickListener,
 		ServiceConnection, SocketService.SocketServiceListener {
@@ -29,7 +27,6 @@ public class CCVN extends Activity implements OnClickListener,
 	Button btnStart = null;
 	TextView lblLyrics = null;
 
-	protected PowerManager.WakeLock wakeLock;
 	protected WifiManager.MulticastLock wifiMulticastLock;
 
 	protected AudioService.AudioServiceBinder audioService = null;
@@ -55,8 +52,6 @@ public class CCVN extends Activity implements OnClickListener,
 		lblLyrics = (TextView) findViewById(R.id.lblLyrics);
 		lblLyrics.setText("");
 
-		PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
-		wakeLock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, TAG);
 		WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
 		wifiMulticastLock = wifiManager.createMulticastLock(TAG);
 
@@ -96,7 +91,6 @@ public class CCVN extends Activity implements OnClickListener,
 	protected void onResume() {
 		super.onResume();
 
-		wakeLock.acquire();
 		wifiMulticastLock.acquire();
 	}
 
@@ -104,7 +98,6 @@ public class CCVN extends Activity implements OnClickListener,
 	protected void onPause() {
 		super.onPause();
 
-		wakeLock.release();
 		wifiMulticastLock.release();
 	}
 
