@@ -14,8 +14,8 @@ public class AudioService extends Service {
 	public IBinder onBind(Intent arg0) {
 		return binder;
 	}
-	
-	@Override
+
+    @Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
 		return START_STICKY;
 	}

@@ -163,6 +163,7 @@ public class SocketService extends Service {
 
 			try {
 				socketReceiver.close();
+                Log.i(TAG, "receiver socket closed");
 			} catch (Exception e) {
 				// this is expected
 			}
@@ -209,10 +210,10 @@ public class SocketService extends Service {
 					if (packet != null) {
 						socketSender.send(packet);
 						packet = null;
-						
+
 						Log.v(TAG, "broadcasted a packet");
 					}
-					
+
 					Thread.sleep(100);
 				}
 			} catch (IOException e) {
@@ -223,6 +224,7 @@ public class SocketService extends Service {
 
 			try {
 				socketSender.close();
+                Log.i(TAG, "sender socket closed");
 			} catch (Exception e) {
 				// this is expected
 			}

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <color name="ccvn_flag">#f00</color>
+    <color name="ccvn_star">#ff0</color>
+    <color name="ccvn_text">#fff</color>
+
+    <dimen name="ccvn_lyric">25sp</dimen>
+
+    <style name="CCVN" parent="Theme.AppCompat.Light.NoActionBar">
+
+    </style>
+
+</resources>
