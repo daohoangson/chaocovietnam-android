@@ -1,31 +1,21 @@
 package com.daohoangson.chaocovietnam;
 
-import java.util.HashMap;
-import java.util.Iterator;
-
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.ComponentName;
-import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.ActivityInfo;
-import android.hardware.Sensor;
-import android.hardware.SensorEvent;
-import android.hardware.SensorEventListener;
-import android.hardware.SensorManager;
-import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.view.View;
-import android.view.View.OnClickListener;
-import android.widget.Button;
 import android.widget.TextView;
 
 import com.daohoangson.chaocovietnam.AudioService.AudioServiceBinder;
-import com.daohoangson.chaocovietnam.SocketService.SocketServiceBinder;
+
+import java.util.HashMap;
 
 public class CCVN extends Activity implements StarView.OnStarInteraction,
         ServiceConnection, SocketService.SocketServiceListener {
@@ -35,14 +25,9 @@ public class CCVN extends Activity implements StarView.OnStarInteraction,
     StarView starView = null;
     TextView lblLyrics = null;
 
-    protected WifiManager.MulticastLock wifiMulticastLock;
-
     protected AudioService.AudioServiceBinder audioService = null;
-    protected Handler audioServiceHandler = new Handler();
 
-    protected SocketService.SocketServiceBinder socketService = null;
     protected Handler socketServiceHandler = new Handler();
-    protected long broadcastSentTime = 0;
     protected long syncBaseTime = 0;
     protected String syncDeviceName = null;
     protected long syncUpdatedTime = 0;
@@ -61,14 +46,6 @@ public class CCVN extends Activity implements StarView.OnStarInteraction,
         lblLyrics.setText("");
 
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR);
-
-        WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
-        wifiMulticastLock = wifiManager.createMulticastLock(TAG);
-
-        startService(new Intent(this, AudioService.class));
-        startService(new Intent(this, SocketService.class));
-        bindService(new Intent(this, AudioService.class), this, BIND_AUTO_CREATE);
-        bindService(new Intent(this, SocketService.class), this, BIND_AUTO_CREATE);
 
         lyrics.put(8.0f, R.string.lyrics_0080);
         lyrics.put(11.5f, R.string.lyrics_0115);
@@ -100,21 +77,25 @@ public class CCVN extends Activity implements StarView.OnStarInteraction,
     protected void onResume() {
         super.onResume();
 
-        wifiMulticastLock.acquire();
+        startService(new Intent(this, AudioService.class));
+        bindService(new Intent(this, AudioService.class), this, BIND_AUTO_CREATE);
     }
 
     @Override
     protected void onPause() {
         super.onPause();
 
-        wifiMulticastLock.release();
+        if (audioService != null) {
+            if (!audioService.isPlaying()) {
+                stopService(new Intent(this, AudioService.class));
+            }
+
+            unbindService(this);
+        }
     }
 
     @Override
     public void onDestroy() {
-        unbindService(this);
-
-        audioServiceHandler.removeCallbacks(audioServiceTick);
         socketServiceHandler.removeCallbacks(socketServiceTick);
 
         super.onDestroy();
@@ -135,95 +116,79 @@ public class CCVN extends Activity implements StarView.OnStarInteraction,
         }
     }
 
-    protected void startPlaying(boolean callService) {
-        if (callService) {
-            audioService.play();
-        }
-
-        audioServiceHandler.removeCallbacks(audioServiceTick);
-        audioServiceHandler.postDelayed(audioServiceTick, 100);
-
-        lblLyrics.setText("");
-
-        broadcastSentTime = 0;
-        syncBaseTime = 0;
-        syncDeviceName = null;
-        syncUpdatedTime = 0;
-    }
-
-    protected void pausePlaying(boolean callService) {
-        if (callService) {
-            audioService.pause();
-        }
-
-        audioServiceHandler.removeCallbacks(audioServiceTick);
-
-        lblLyrics.setText("");
-    }
-
     @Override
     public void onStarClick() {
-        if (audioService != null) {
-            if (audioService.isPlaying()) {
-                pausePlaying(true);
-            } else {
-                startPlaying(true);
-            }
+        if (audioService != null && audioService.isPlaying()) {
+            pausePlaying(true);
+        } else {
+            startPlaying(true);
         }
     }
 
     @Override
     public void onServiceConnected(ComponentName name, IBinder service) {
-        if (service instanceof AudioServiceBinder) {
-            audioService = (AudioServiceBinder) service;
+        audioService = (AudioServiceBinder) service;
+        audioService.setListener(this);
 
-            // this looks silly but we call it to initialize components' states
-            if (audioService.isPlaying()) {
-                startPlaying(false);
-            } else {
-                pausePlaying(false);
-            }
-        } else if (service instanceof SocketServiceBinder) {
-            socketService = (SocketServiceBinder) service;
-            socketService.setListener(this);
+        // this looks silly but we call it to initialize components' states
+        if (audioService.isPlaying()) {
+            startPlaying(false);
+        } else {
+            pausePlaying(false);
         }
     }
 
     @Override
     public void onServiceDisconnected(ComponentName name) {
-        // TODO Auto-generated method stub
-
+        audioService = null;
     }
 
-    protected Runnable audioServiceTick = new Runnable() {
+    public void startPlaying(boolean callService) {
+        if (callService && audioService != null) {
+            audioService.play();
+        }
 
-        @Override
-        public void run() {
-            if (audioService != null) {
-                float seconds = audioService.getCurrentPosition() / 1000.0f;
+        lblLyrics.setText("");
 
-                updateLyrics(seconds, null);
+        syncBaseTime = 0;
+        syncDeviceName = null;
+        syncUpdatedTime = 0;
+    }
 
-                if (audioService.isPlaying()) {
-                    if (socketService != null) {
-                        long currentTime = System.currentTimeMillis();
-                        if (currentTime - broadcastSentTime > Configuration.SYNC_BROADCAST_STEP) {
-                            // it's time to broadcast
-                            socketService.broadcast(seconds);
-                            // marks as sent
-                            broadcastSentTime = currentTime;
-                        }
-                    }
+    public void pausePlaying(boolean callService) {
+        if (callService) {
+            audioService.pause();
+        }
 
-                    audioServiceHandler.postDelayed(this,
-                            Configuration.TIMER_STEP);
-                } else {
-                    pausePlaying(false);
-                }
+        lblLyrics.setText("");
+    }
+
+    public void updateLyrics(float seconds, String fromDeviceName) {
+        float maxTime = 0;
+        int maxLyric = 0;
+
+        for (Float time : lyrics.keySet()) {
+            if (seconds > time && maxTime < time) {
+                maxTime = time;
+                maxLyric = lyrics.get(time);
             }
         }
 
-    };
+        if (maxLyric > 0) {
+            if (fromDeviceName == null) {
+                lblLyrics.setText(maxLyric);
+            } else {
+                // this is from another device (sync mode)
+                // appends the device name
+                String line = getResources().getString(maxLyric);
+                String formatted = String.format("%s (%s)", line,
+                        fromDeviceName);
+                lblLyrics.setText(formatted);
+            }
+        } else {
+            lblLyrics.setText("");
+        }
+    }
 
     protected Runnable socketServiceTick = new Runnable() {
 
@@ -255,43 +220,13 @@ public class CCVN extends Activity implements StarView.OnStarInteraction,
 
     };
 
-    protected void updateLyrics(float seconds, String fromDeviceName) {
-        float maxTime = 0;
-        float time = 0;
-        int maxLyric = 0;
-
-        Iterator<Float> i = lyrics.keySet().iterator();
-        while (i.hasNext()) {
-            time = i.next();
-            if (seconds > time && maxTime < time) {
-                maxTime = time;
-                maxLyric = lyrics.get(time);
-            }
-        }
-
-        if (maxLyric > 0) {
-            if (fromDeviceName == null) {
-                lblLyrics.setText(maxLyric);
-            } else {
-                // this is from another device (sync mode)
-                // appends the device name
-                String line = getResources().getString(maxLyric);
-                String formatted = String.format("%s (%s)", line,
-                        fromDeviceName);
-                lblLyrics.setText(formatted);
-            }
-        } else {
-            lblLyrics.setText("");
-        }
-    }
-
     @Override
     public void onMessage(final float seconds, final String name) {
         socketServiceHandler.post(new Runnable() {
 
             @Override
             public void run() {
-                if (audioService == null || audioService.isPlaying() == false) {
+                if (audioService == null || !audioService.isPlaying()) {
                     // only works if the player is not playing
                     // this check will keeps us from working with our own
                     // broadcast message
@@ -304,6 +239,7 @@ public class CCVN extends Activity implements StarView.OnStarInteraction,
                         syncDeviceName = name;
                         syncUpdatedTime = currentTime;
 
+                        socketServiceHandler.removeCallbacks(socketServiceTick);
                         socketServiceHandler.post(socketServiceTick);
                     }
                 }

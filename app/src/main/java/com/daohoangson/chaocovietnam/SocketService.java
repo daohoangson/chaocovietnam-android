@@ -23,6 +23,8 @@ import android.util.Log;
 public class SocketService extends Service {
 	private final static String TAG = "SocketService";
 
+    WifiManager.MulticastLock wifiMulticastLock;
+
 	SocketServiceBinder binder = new SocketServiceBinder();
 	ReceiverRunnable receiverRunnable = new ReceiverRunnable();
 	SenderRunnable senderRunnable = new SenderRunnable();
@@ -30,16 +32,27 @@ public class SocketService extends Service {
 
 	@Override
 	public IBinder onBind(Intent intent) {
+        wifiMulticastLock.acquire();
+
 		return binder;
 	}
 
-	@Override
+    @Override
+    public boolean onUnbind(Intent intent) {
+        wifiMulticastLock.release();
+
+        return super.onUnbind(intent);
+    }
+
+    @Override
 	public void onCreate() {
 		new Thread(receiverRunnable).start();
 		new Thread(senderRunnable).start();
 
 		try {
 			WifiManager wifi = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+            wifiMulticastLock = wifi.createMulticastLock(TAG);
+
 			DhcpInfo dhcp = wifi.getDhcpInfo();
 			try {
 				int broadcast = (dhcp.ipAddress & dhcp.netmask) | ~dhcp.netmask;
@@ -163,10 +176,11 @@ public class SocketService extends Service {
 
 			try {
 				socketReceiver.close();
-                Log.i(TAG, "receiver socket closed");
 			} catch (Exception e) {
 				// this is expected
 			}
+
+            Log.i(TAG, "receiver socket closed");
 		}
 	}
 
@@ -224,10 +238,11 @@ public class SocketService extends Service {
 
 			try {
 				socketSender.close();
-                Log.i(TAG, "sender socket closed");
 			} catch (Exception e) {
 				// this is expected
 			}
+
+            Log.i(TAG, "sender socket closed");
 		}
 	}
 }
