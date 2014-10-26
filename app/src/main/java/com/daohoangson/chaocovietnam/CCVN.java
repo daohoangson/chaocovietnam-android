@@ -11,7 +11,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.support.v4.view.GestureDetectorCompat;
-import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
@@ -25,9 +24,14 @@ public class CCVN extends Activity implements ServiceConnection,
         SocketService.SocketServiceListener,
         GestureDetector.OnGestureListener, GestureDetector.OnDoubleTapListener {
 
+    private static final String ARG_INSTRUCTION_GONE = "instructionGone";
+
     private StarView mStarView;
     private TextView mLyricsView;
+    private TextView mInstruction;
     private GestureDetectorCompat mGDC;
+
+    private boolean mInstructionGone = false;
 
     private AudioService.AudioServiceBinder mAudioService = null;
 
@@ -46,6 +50,7 @@ public class CCVN extends Activity implements ServiceConnection,
         mStarView = (StarView) findViewById(R.id.star);
         mLyricsView = (TextView) findViewById(R.id.lblLyrics);
         mLyricsView.setText("");
+        mInstruction = (TextView) findViewById(R.id.lblInstruction);
 
         mGDC = new GestureDetectorCompat(this, this);
         mGDC.setOnDoubleTapListener(this);
@@ -84,6 +89,18 @@ public class CCVN extends Activity implements ServiceConnection,
 
         startService(new Intent(this, AudioService.class));
         bindService(new Intent(this, AudioService.class), this, BIND_AUTO_CREATE);
+
+        if (mInstructionGone) {
+            mInstruction.setVisibility(View.GONE);
+        } else {
+            mHandler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    mInstruction.setVisibility(View.GONE);
+                    mInstructionGone = true;
+                }
+            }, 3000);
+        }
     }
 
     @Override
@@ -104,6 +121,24 @@ public class CCVN extends Activity implements ServiceConnection,
         mHandler.removeCallbacks(socketServiceTick);
 
         super.onDestroy();
+    }
+
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        if (savedInstanceState != null) {
+            if (savedInstanceState.containsKey(ARG_INSTRUCTION_GONE)) {
+                mInstructionGone = savedInstanceState.getBoolean(ARG_INSTRUCTION_GONE);
+            }
+        }
+
+        super.onRestoreInstanceState(savedInstanceState);
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        outState.putBoolean(ARG_INSTRUCTION_GONE, mInstructionGone);
+
+        super.onSaveInstanceState(outState);
     }
 
     @TargetApi(Build.VERSION_CODES.KITKAT)

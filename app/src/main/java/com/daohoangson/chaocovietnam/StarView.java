@@ -1,5 +1,6 @@
 package com.daohoangson.chaocovietnam;
 
+import android.animation.LayoutTransition;
 import android.annotation.TargetApi;
 import android.content.Context;
 import android.graphics.Canvas;
@@ -114,5 +115,14 @@ public class StarView extends RelativeLayout {
 
         mHeightLyric = getResources().getDimensionPixelSize(R.dimen.ccvn_lyric);
         mWidthProgress = getResources().getDimensionPixelSize(R.dimen.ccvn_progress);
+
+        setupAnimation();
+    }
+
+    @TargetApi(Build.VERSION_CODES.HONEYCOMB)
+    private void setupAnimation() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
+            setLayoutTransition(new LayoutTransition());
+        }
     }
 }

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Chào cờ</string>
+    <string name="instruction">Chạm để phát nhạc, kéo để điều chỉnh</string>
+    <string name="notification">Đang phát Quốc ca Việt Nam</string>
+</resources>

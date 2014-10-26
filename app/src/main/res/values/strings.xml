@@ -2,6 +2,7 @@
 <resources>
     <string name="app_name">Chao co</string>
     <string name="notification">Playing Vietnamese National Anthem</string>
+    <string name="instruction">Tap to play, drag to seek.</string>
 
     <string name="lyrics_test">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent pretium ullamcorper sapien vel consectetur.</string>
     <string name="lyrics_0080">Đoàn quân Việt Nam đi</string>

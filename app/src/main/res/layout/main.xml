@@ -7,13 +7,29 @@
     android:keepScreenOn="true">
 
     <TextView
+        android:id="@+id/lblInstruction"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:lines="1"
+        android:maxLines="1"
+        android:singleLine="true"
+        android:text="@string/instruction"
+        android:textColor="@color/ccvn_instruction"
+        android:textSize="@dimen/ccvn_instruction" />
+
+    <TextView
         android:id="@+id/lblLyrics"
-        android:layout_width="fill_parent"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
         android:ellipsize="end"
         android:gravity="center"
         android:lines="1"
+        android:maxLines="1"
+        android:singleLine="true"
         android:text="@string/lyrics_test"
         android:textColor="@color/ccvn_text"
         android:textSize="@dimen/ccvn_lyric" />
