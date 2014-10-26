@@ -6,15 +6,18 @@ android {
 
     defaultConfig {
         applicationId "com.daohoangson.chaocovietnam"
-        versionCode 1
+        versionCode 3
         versionName "1.0"
         minSdkVersion 8
         targetSdkVersion 21
     }
 
     buildTypes {
+        debug {
+            applicationIdSuffix ".debug"
+        }
         release {
-            runProguard false
+            runProguard true
             proguardFiles getDefaultProguardFile('proguard-android.txt')
         }
     }

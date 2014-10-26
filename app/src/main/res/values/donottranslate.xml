@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="lyrics_test">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent pretium ullamcorper sapien vel consectetur.</string>
+    <string name="lyrics_0080">Đoàn quân Việt Nam đi</string>
+    <string name="lyrics_0115">Chung lòng cứu quốc</string>
+    <string name="lyrics_0145">Bước chân dồn vang trên đường gập ghềnh xa</string>
+    <string name="lyrics_0200">Cờ in máu chiến thắng mang hồn nước,</string>
+    <string name="lyrics_0260">Súng ngoài xa chen khúc quân hành ca.</string>
+    <string name="lyrics_0320">Đường vinh quang xây xác quân thù,</string>
+    <string name="lyrics_0370">Thắng gian lao cùng nhau lập chiến khu.</string>
+    <string name="lyrics_0435">Vì nhân dân chiến đấu không ngừng,</string>
+    <string name="lyrics_0485">Tiến mau ra sa trường,</string>
+    <string name="lyrics_0525">Tiến lên, cùng tiến lên.</string>
+    <string name="lyrics_0600">Nước non Việt Nam ta vững bền.</string>
+
+    <string name="lyrics_0670">Đoàn quân Việt Nam đi</string>
+    <string name="lyrics_0700">Sao vàng phấp phới</string>
+    <string name="lyrics_0725">Dắt giống nòi quê hương qua nơi lầm than</string>
+    <string name="lyrics_0775">Cùng chung sức phấn đấu xây đời mới,</string>
+    <string name="lyrics_0840">Đứng đều lên gông xích ta đập tan.</string>
+    <string name="lyrics_0890">Từ bao lâu ta nuốt căm hờn,</string>
+    <string name="lyrics_0940">Quyết hy sinh đời ta tươi thắm hơn.</string>
+    <string name="lyrics_1005">Vì nhân dân chiến đấu không ngừng,</string>
+    <string name="lyrics_1065">Tiến mau ra sa trường,</string>
+    <string name="lyrics_1095">Tiến lên, cùng tiến lên.</string>
+    <string name="lyrics_1175">Nước non Việt Nam ta vững bền.</string>
+    <string name="lyrics_1275" />
+</resources>
