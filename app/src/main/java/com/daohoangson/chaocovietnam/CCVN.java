@@ -1,52 +1,38 @@
 package com.daohoangson.chaocovietnam;
 
 import android.annotation.TargetApi;
-import android.app.Activity;
 import android.app.Dialog;
-import android.app.Presentation;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.ActivityInfo;
-import android.graphics.pdf.PdfRenderer;
 import android.hardware.display.DisplayManager;
-import android.media.MediaRouter;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
-import android.support.annotation.NonNull;
-import android.support.v4.view.GestureDetectorCompat;
-import android.util.Log;
+import android.support.v4.app.FragmentActivity;
 import android.util.SparseArray;
 import android.view.Display;
-import android.view.GestureDetector;
-import android.view.MotionEvent;
 import android.view.View;
-import android.view.WindowManager;
-import android.widget.TextView;
+import android.widget.FrameLayout;
 
 import com.daohoangson.chaocovietnam.AudioService.AudioServiceBinder;
+import com.daohoangson.chaocovietnam.fragment.FlagFragment;
 
 import java.util.HashMap;
 
-public class CCVN extends Activity implements ServiceConnection,
-        SocketService.SocketServiceListener,
-        GestureDetector.OnGestureListener, GestureDetector.OnDoubleTapListener {
-
-    private static final String TAG = "CCVN";
-    private static final String ARG_INSTRUCTION_GONE = "instructionGone";
-
-    private StarView mStarView;
-    private TextView mLyricsView;
-    private TextView mInstruction;
-    private GestureDetectorCompat mGDC;
-
-    private boolean mInstructionGone = false;
+public class CCVN extends FragmentActivity implements
+        FlagFragment.Caller,
+        ServiceConnection,
+        SocketService.SocketServiceListener {
 
     private AudioService.AudioServiceBinder mAudioService = null;
+
+    private FrameLayout mContainer;
+    private FlagFragment mFlagFragment;
 
     final private Handler mHandler = new Handler();
     private long mSyncBaseTime = 0;
@@ -64,15 +50,9 @@ public class CCVN extends Activity implements ServiceConnection,
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
 
-        mStarView = (StarView) findViewById(R.id.star);
-        mLyricsView = (TextView) findViewById(R.id.lblLyrics);
-        mLyricsView.setText("");
-        mInstruction = (TextView) findViewById(R.id.lblInstruction);
-
-        mGDC = new GestureDetectorCompat(this, this);
-        mGDC.setOnDoubleTapListener(this);
-
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR);
+
+        mContainer = (FrameLayout) findViewById(R.id.container);
 
         mLyrics.put(8.0f, R.string.lyrics_0080);
         mLyrics.put(11.5f, R.string.lyrics_0115);
@@ -99,7 +79,7 @@ public class CCVN extends Activity implements ServiceConnection,
         mLyrics.put(117.5f, R.string.lyrics_1175);
         mLyrics.put(127.5f, R.string.lyrics_1275);
 
-        // presentation support
+        flagOnCreate(savedInstanceState);
         presentationOnCreate();
     }
 
@@ -109,18 +89,6 @@ public class CCVN extends Activity implements ServiceConnection,
 
         startService(new Intent(this, AudioService.class));
         bindService(new Intent(this, AudioService.class), this, BIND_AUTO_CREATE);
-
-        if (mInstructionGone) {
-            mInstruction.setVisibility(View.GONE);
-        } else {
-            mHandler.postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    mInstruction.setVisibility(View.GONE);
-                    mInstructionGone = true;
-                }
-            }, 3000);
-        }
 
         presentationOnResume();
     }
@@ -147,123 +115,19 @@ public class CCVN extends Activity implements ServiceConnection,
         super.onDestroy();
     }
 
-    @Override
-    protected void onRestoreInstanceState(@NonNull Bundle savedInstanceState) {
-        if (savedInstanceState != null) {
-            if (savedInstanceState.containsKey(ARG_INSTRUCTION_GONE)) {
-                mInstructionGone = savedInstanceState.getBoolean(ARG_INSTRUCTION_GONE);
-            }
-        }
-
-        super.onRestoreInstanceState(savedInstanceState);
-    }
-
-    @Override
-    protected void onSaveInstanceState(@NonNull Bundle outState) {
-        outState.putBoolean(ARG_INSTRUCTION_GONE, mInstructionGone);
-
-        super.onSaveInstanceState(outState);
-    }
-
     @TargetApi(Build.VERSION_CODES.KITKAT)
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
 
         if (hasFocus && Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            mStarView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+            mContainer.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                     | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                     | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
                     | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                     | View.SYSTEM_UI_FLAG_FULLSCREEN
                     | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
         }
-    }
-
-    @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        mGDC.onTouchEvent(event);
-
-        return super.onTouchEvent(event);
-    }
-
-    @Override
-    public boolean onDown(MotionEvent motionEvent) {
-        return true;
-    }
-
-    @Override
-    public void onShowPress(MotionEvent motionEvent) {
-
-    }
-
-    @Override
-    public boolean onSingleTapUp(MotionEvent motionEvent) {
-        return false;
-    }
-
-    @Override
-    public boolean onScroll(MotionEvent motionEvent, MotionEvent motionEvent2, float v1, float v2) {
-        if (mAudioService == null) {
-            return false;
-        }
-
-        final float absV1 = Math.abs(v1);
-        final float absV2 = Math.abs(v2);
-        final float v;
-        final float r;
-        if (absV1 > absV2) {
-            v = v1 * -1;
-            r = mStarView.getWidth();
-        } else {
-            v = v2;
-            r = mStarView.getHeight();
-        }
-
-        final float percentage = v / r;
-        if (Math.abs(percentage) > 0.01) {
-            mAudioService.seekRelative(percentage);
-        }
-
-        return true;
-    }
-
-    @Override
-    public void onLongPress(MotionEvent motionEvent) {
-
-    }
-
-    @Override
-    public boolean onFling(MotionEvent motionEvent, MotionEvent motionEvent2, float v, float v2) {
-        return false;
-    }
-
-    @Override
-    public boolean onSingleTapConfirmed(MotionEvent motionEvent) {
-        if (mAudioService != null && mAudioService.isPlaying()) {
-            pausePlaying(true, false);
-        } else {
-            startPlaying(true);
-        }
-
-        return true;
-    }
-
-    @Override
-    public boolean onDoubleTap(MotionEvent motionEvent) {
-        if (mAudioService == null) {
-            startPlaying(true);
-        } else {
-            pausePlaying(true, true);
-            startPlaying(true);
-        }
-
-        return true;
-    }
-
-    @Override
-    public boolean onDoubleTapEvent(MotionEvent motionEvent) {
-        return false;
     }
 
     @Override
@@ -311,30 +175,46 @@ public class CCVN extends Activity implements ServiceConnection,
         });
     }
 
+    @Override
+    public void setFlagFragment(FlagFragment flagFragment) {
+        mFlagFragment = flagFragment;
+    }
+
+    @Override
     public void startPlaying(boolean callService) {
         if (callService && mAudioService != null) {
             mAudioService.play();
         }
-
-        mLyricsView.setText("");
 
         mSyncBaseTime = 0;
         mSyncDeviceName = null;
         mSyncUpdatedTime = 0;
     }
 
+    @Override
     public void pausePlaying(boolean callService, boolean stop) {
         if (callService) {
             mAudioService.pause(stop);
         }
+    }
 
-        mLyricsView.setText("");
+    @Override
+    public boolean isPlaying() {
+        return mAudioService != null && mAudioService.isPlaying();
+    }
+
+    @Override
+    public void seekRelative(float percentage) {
+        if (mAudioService != null) {
+            mAudioService.seekRelative(percentage);
+        }
     }
 
     public void updateLyrics(float seconds, String fromDeviceName) {
         float maxTime = 0;
         int maxLyric = 0;
-        final float progress = mAudioService.getCurrentPosition() * 1.0f / mAudioService.getDuration();
+        final float progress = (seconds == 0 ? 0 :
+                (mAudioService.getCurrentPosition() * 1.0f / mAudioService.getDuration()));
 
         for (Float time : mLyrics.keySet()) {
             if (seconds > time && maxTime < time) {
@@ -357,10 +237,26 @@ public class CCVN extends Activity implements ServiceConnection,
             lyric = "";
         }
 
-        mLyricsView.setText(lyric);
-        mStarView.setProgress(progress);
-
+        flagUpdateLyrics(lyric, progress);
         presentationUpdateLyrics(lyric, progress);
+    }
+
+    private void flagUpdateLyrics(String lyric, float progress) {
+        if (mFlagFragment == null) {
+            return;
+        }
+
+        mFlagFragment.getLyricsView().setText(lyric);
+        mFlagFragment.getStarView().setProgress(progress);
+    }
+
+    private void flagOnCreate(Bundle savedInstanceState) {
+        if (savedInstanceState == null) {
+            getSupportFragmentManager()
+                    .beginTransaction()
+                    .add(R.id.container, new FlagFragment())
+                    .commit();
+        }
     }
 
     @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
