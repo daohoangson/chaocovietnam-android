@@ -119,17 +119,20 @@ public class SocketService extends Service {
 
                 Log.i(TAG, "sender socket established");
             } catch (Exception e) {
-                e.printStackTrace();
+                Log.e(TAG, "sender socket opening", e);
 
                 if (mSocketSender != null) {
-                    mSocketSender.close();
+                    try {
+                        mSocketSender.close();
+                    } catch (Exception e2) {
+                        // ignore
+                    }
                 }
             }
 
             if (mSocketSender == null) {
                 // something is wrong...
                 Log.e(TAG, "sender socket could not be established");
-
                 return;
             }
 
@@ -139,21 +142,19 @@ public class SocketService extends Service {
                         mSocketSender.send(mPacket);
                         mPacket = null;
 
-                        Log.v(TAG, "broadcasted a packet");
+                        Log.v(TAG, "broadcast a packet");
                     }
 
                     Thread.sleep(100);
                 }
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+            } catch (Exception e) {
+                Log.e(TAG, "sender socket", e);
             }
 
             try {
                 mSocketSender.close();
             } catch (Exception e) {
-                // this is expected
+                Log.e(TAG, "sender socket closing", e);
             }
 
             Log.i(TAG, "sender socket closed");
@@ -163,10 +164,13 @@ public class SocketService extends Service {
     private class ReceiverRunnable implements Runnable {
         private DatagramSocket mSocketReceiver;
         private SocketServiceListener mListener = null;
-        private boolean mFlagStop = false;
 
         private void scheduleStop() {
-            mFlagStop = true;
+            try {
+                mSocketReceiver.close();
+            } catch (Exception e) {
+                Log.e(TAG, "receiver socket closing", e);
+            }
         }
 
         @Override
@@ -187,10 +191,21 @@ public class SocketService extends Service {
 
                     Log.i(TAG, "receiver socket established");
                 } catch (SocketException e) {
-                    e.printStackTrace();
+                    Log.e(TAG, "receiver socket opening");
 
                     if (mSocketReceiver != null) {
-                        mSocketReceiver.close();
+                        try {
+                            mSocketReceiver.close();
+                        } catch (Exception e2) {
+                            // ignore
+                        }
+                    }
+
+                    try {
+                        // wait a bit before trying again
+                        Thread.sleep(500);
+                    } catch (InterruptedException e2) {
+                        // ignore
                     }
                 }
 
@@ -200,39 +215,45 @@ public class SocketService extends Service {
             if (mSocketReceiver == null || !mSocketReceiver.isBound()) {
                 // something is wrong...
                 Log.e(TAG, "receiver socket could not be established");
-
                 return;
             }
 
             try {
-                while (!mFlagStop) {
+                while (true) {
                     byte[] buf = new byte[256];
                     DatagramPacket packet = new DatagramPacket(buf, buf.length);
                     mSocketReceiver.receive(packet);
 
                     if (mListener != null) {
                         String string = new String(packet.getData());
+                        if (BuildConfig.DEBUG) {
+                            Log.v(TAG, "packet received: " + string);
+                        } else {
+                            Log.v(TAG, "packet received");
+                        }
 
-                        Log.v(TAG, "packet received: " + string);
-
-                        JSONObject jsonObject = new JSONObject(string);
-                        float seconds = (float) jsonObject
-                                .getDouble(Configuration.DATA_KEY_SECONDS);
-                        String name = jsonObject
-                                .getString(Configuration.DATA_KEY_NAME);
-                        mListener.onBroadcastMessage(seconds, name);
+                        try {
+                            JSONObject jsonObject = new JSONObject(string);
+                            float seconds = (float) jsonObject
+                                    .getDouble(Configuration.DATA_KEY_SECONDS);
+                            String name = jsonObject
+                                    .getString(Configuration.DATA_KEY_NAME);
+                            mListener.onBroadcastMessage(seconds, name);
+                        } catch (JSONException e) {
+                            Log.e(TAG, "receiver socket json", e);
+                        }
                     }
                 }
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (JSONException e) {
-                e.printStackTrace();
+            } catch (SocketException e) {
+                // ignore
+            } catch (Exception e) {
+                Log.e(TAG, "receiver socket", e);
             }
 
             try {
                 mSocketReceiver.close();
             } catch (Exception e) {
-                // this is expected
+                Log.e(TAG, "receiver socket closing", e);
             }
 
             Log.i(TAG, "receiver socket closed");
