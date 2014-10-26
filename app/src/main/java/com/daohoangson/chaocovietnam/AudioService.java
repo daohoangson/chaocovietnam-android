@@ -17,16 +17,16 @@ public class AudioService extends Service implements ServiceConnection, SocketSe
 
     private static final int NOTIFICATION_ID = 1;
 
-    MediaPlayer mediaPlayer = null;
-    AudioServiceBinder binder = new AudioServiceBinder();
-    Tick tick = new Tick();
+    private MediaPlayer mMediaPlayer = null;
+    final private AudioServiceBinder mBinder = new AudioServiceBinder();
+    final private Tick mTick = new Tick();
 
-    SocketService.SocketServiceBinder socketService;
-    CCVN listener;
+    private SocketService.SocketServiceBinder mSocketService;
+    private CCVN mListener;
 
     @Override
     public IBinder onBind(Intent arg0) {
-        return binder;
+        return mBinder;
     }
 
     @Override
@@ -40,59 +40,59 @@ public class AudioService extends Service implements ServiceConnection, SocketSe
     public void onDestroy() {
         unbindService(this);
 
-        if (mediaPlayer != null) {
-            mediaPlayer.release();
-            mediaPlayer = null;
+        if (mMediaPlayer != null) {
+            mMediaPlayer.release();
+            mMediaPlayer = null;
         }
 
-        tick.stop();
+        mTick.stop();
 
         super.onDestroy();
     }
 
     @Override
     public void onServiceConnected(ComponentName componentName, IBinder service) {
-        socketService = (SocketService.SocketServiceBinder) service;
-        socketService.setListener(this);
+        mSocketService = (SocketService.SocketServiceBinder) service;
+        mSocketService.setListener(this);
     }
 
     @Override
     public void onServiceDisconnected(ComponentName componentName) {
-        socketService = null;
+        mSocketService = null;
     }
 
     @Override
-    public void onMessage(float seconds, String name) {
-        if (listener != null) {
-            listener.onMessage(seconds, name);
+    public void onBroadcastMessage(float seconds, String name) {
+        if (mListener != null) {
+            mListener.onBroadcastMessage(seconds, name);
         }
     }
 
     @Override
     public void onCompletion(MediaPlayer mediaPlayer) {
-        binder.pause();
+        mBinder.pause();
     }
 
     class AudioServiceBinder extends Binder {
         public void pause() {
-            if (mediaPlayer != null) {
-                mediaPlayer.pause();
+            if (mMediaPlayer != null) {
+                mMediaPlayer.pause();
 
                 stopForeground(true);
 
-                tick.stop();
+                mTick.stop();
             }
         }
 
         public void play() {
-            if (mediaPlayer == null) {
-                mediaPlayer = MediaPlayer.create(getApplicationContext(), R.raw.anthem);
-                mediaPlayer.setWakeMode(getApplicationContext(), PowerManager.PARTIAL_WAKE_LOCK);
-                mediaPlayer.setOnCompletionListener(AudioService.this);
+            if (mMediaPlayer == null) {
+                mMediaPlayer = MediaPlayer.create(getApplicationContext(), R.raw.anthem);
+                mMediaPlayer.setWakeMode(getApplicationContext(), PowerManager.PARTIAL_WAKE_LOCK);
+                mMediaPlayer.setOnCompletionListener(AudioService.this);
             }
 
-            if (mediaPlayer != null) {
-                mediaPlayer.start();
+            if (mMediaPlayer != null) {
+                mMediaPlayer.start();
 
                 PendingIntent pi = PendingIntent.getActivity(getApplicationContext(), 0,
                         new Intent(getApplicationContext(), CCVN.class),
@@ -105,66 +105,66 @@ public class AudioService extends Service implements ServiceConnection, SocketSe
                         .build();
                 startForeground(NOTIFICATION_ID, notification);
 
-                tick.start();
+                mTick.start();
             }
         }
 
         public boolean isPlaying() {
-            return mediaPlayer != null && mediaPlayer.isPlaying();
+            return mMediaPlayer != null && mMediaPlayer.isPlaying();
         }
 
         public int getCurrentPosition() {
-            if (mediaPlayer != null) {
-                return mediaPlayer.getCurrentPosition();
+            if (mMediaPlayer != null) {
+                return mMediaPlayer.getCurrentPosition();
             } else {
                 return 0;
             }
         }
 
         public void setListener(CCVN listener) {
-            AudioService.this.listener = listener;
+            mListener = listener;
         }
     }
 
     class Tick implements Runnable {
-        protected Handler audioServiceHandler = new Handler();
-        protected long broadcastSentTime;
+        final private Handler mHandler = new Handler();
+        private long mBroadcastTime;
 
         public void start() {
-            broadcastSentTime = 0;
+            mBroadcastTime = 0;
 
-            audioServiceHandler.removeCallbacks(this);
-            audioServiceHandler.postDelayed(this, 100);
+            mHandler.removeCallbacks(this);
+            mHandler.postDelayed(this, 100);
         }
 
         public void stop() {
-            audioServiceHandler.removeCallbacks(this);
+            mHandler.removeCallbacks(this);
         }
 
         @Override
         public void run() {
-            float seconds = binder.getCurrentPosition() / 1000.0f;
+            float seconds = mBinder.getCurrentPosition() / 1000.0f;
 
-            if (listener != null) {
-                listener.updateLyrics(seconds, null);
+            if (mListener != null) {
+                mListener.updateLyrics(seconds, null);
             }
 
-            if (binder.isPlaying()) {
+            if (mBinder.isPlaying()) {
                 long currentTime = System.currentTimeMillis();
-                if (currentTime - broadcastSentTime > Configuration.SYNC_BROADCAST_STEP) {
+                if (currentTime - mBroadcastTime > Configuration.SYNC_BROADCAST_STEP) {
                     // it's time to broadcast
-                    if (socketService != null) {
-                        socketService.broadcast(seconds);
+                    if (mSocketService != null) {
+                        mSocketService.broadcast(seconds);
                     }
 
                     // marks as sent
-                    broadcastSentTime = currentTime;
+                    mBroadcastTime = currentTime;
                 }
 
-                audioServiceHandler.postDelayed(this, Configuration.TIMER_STEP);
+                mHandler.postDelayed(this, Configuration.TIMER_STEP);
             } else {
-                if (listener != null) {
-                    listener.pausePlaying(false);
+                if (mListener != null) {
+                    mListener.pausePlaying(false);
                 }
             }
         }

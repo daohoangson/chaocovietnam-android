@@ -14,7 +14,7 @@
         android:ellipsize="end"
         android:gravity="center"
         android:lines="1"
-        android:text="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent pretium ullamcorper sapien vel consectetur."
+        android:text="@string/lyrics_test"
         android:textColor="@color/ccvn_text"
         android:textSize="@dimen/ccvn_lyric" />
 

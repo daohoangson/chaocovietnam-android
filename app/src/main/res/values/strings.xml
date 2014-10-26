@@ -1,11 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="hello">Hello World, CCVN!</string>
     <string name="app_name">Chao co</string>
-    <string name="play">Play</string>
-    <string name="pause">Pause</string>
     <string name="notification">Playing Vietnamese National Anthem</string>
-    
+
+    <string name="lyrics_test">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent pretium ullamcorper sapien vel consectetur.</string>
     <string name="lyrics_0080">Đoàn quân Việt Nam đi</string>
     <string name="lyrics_0115">Chung lòng cứu quốc</string>
     <string name="lyrics_0145">Bước chân dồn vang trên đường gập ghềnh xa</string>
@@ -17,7 +15,7 @@
     <string name="lyrics_0485">Tiến mau ra sa trường,</string>
     <string name="lyrics_0525">Tiến lên, cùng tiến lên.</string>
     <string name="lyrics_0600">Nước non Việt Nam ta vững bền.</string>
-    
+
     <string name="lyrics_0670">Đoàn quân Việt Nam đi</string>
     <string name="lyrics_0700">Sao vàng phấp phới</string>
     <string name="lyrics_0725">Dắt giống nòi quê hương qua nơi lầm than</string>
@@ -29,5 +27,5 @@
     <string name="lyrics_1065">Tiến mau ra sa trường,</string>
     <string name="lyrics_1095">Tiến lên, cùng tiến lên.</string>
     <string name="lyrics_1175">Nước non Việt Nam ta vững bền.</string>
-    <string name="lyrics_1275"></string>
+    <string name="lyrics_1275" />
 </resources>

@@ -20,57 +20,55 @@ import java.util.HashMap;
 public class CCVN extends Activity implements StarView.OnStarInteraction,
         ServiceConnection, SocketService.SocketServiceListener {
 
-    private final static String TAG = "CCVN/Main";
+    private StarView mStarView = null;
+    private TextView mLyricsView = null;
 
-    StarView starView = null;
-    TextView lblLyrics = null;
+    private AudioService.AudioServiceBinder mAudioService = null;
 
-    protected AudioService.AudioServiceBinder audioService = null;
+    final private Handler mHandler = new Handler();
+    private long mSyncBaseTime = 0;
+    private String mSyncDeviceName = null;
+    private long mSyncUpdatedTime = 0;
 
-    protected Handler socketServiceHandler = new Handler();
-    protected long syncBaseTime = 0;
-    protected String syncDeviceName = null;
-    protected long syncUpdatedTime = 0;
-
-    protected HashMap<Float, Integer> lyrics = new HashMap<Float, Integer>();
+    final private HashMap<Float, Integer> mLyrics = new HashMap<Float, Integer>();
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
 
-        starView = (StarView) findViewById(R.id.star);
-        starView.setListener(this);
+        mStarView = (StarView) findViewById(R.id.star);
+        mStarView.setListener(this);
 
-        lblLyrics = (TextView) findViewById(R.id.lblLyrics);
-        lblLyrics.setText("");
+        mLyricsView = (TextView) findViewById(R.id.lblLyrics);
+        mLyricsView.setText("");
 
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR);
 
-        lyrics.put(8.0f, R.string.lyrics_0080);
-        lyrics.put(11.5f, R.string.lyrics_0115);
-        lyrics.put(14.5f, R.string.lyrics_0145);
-        lyrics.put(20.0f, R.string.lyrics_0200);
-        lyrics.put(26.0f, R.string.lyrics_0260);
-        lyrics.put(32.0f, R.string.lyrics_0320);
-        lyrics.put(37.0f, R.string.lyrics_0370);
-        lyrics.put(43.5f, R.string.lyrics_0435);
-        lyrics.put(48.5f, R.string.lyrics_0485);
-        lyrics.put(52.5f, R.string.lyrics_0525);
-        lyrics.put(60.0f, R.string.lyrics_0600);
+        mLyrics.put(8.0f, R.string.lyrics_0080);
+        mLyrics.put(11.5f, R.string.lyrics_0115);
+        mLyrics.put(14.5f, R.string.lyrics_0145);
+        mLyrics.put(20.0f, R.string.lyrics_0200);
+        mLyrics.put(26.0f, R.string.lyrics_0260);
+        mLyrics.put(32.0f, R.string.lyrics_0320);
+        mLyrics.put(37.0f, R.string.lyrics_0370);
+        mLyrics.put(43.5f, R.string.lyrics_0435);
+        mLyrics.put(48.5f, R.string.lyrics_0485);
+        mLyrics.put(52.5f, R.string.lyrics_0525);
+        mLyrics.put(60.0f, R.string.lyrics_0600);
 
-        lyrics.put(67.0f, R.string.lyrics_0670);
-        lyrics.put(70.0f, R.string.lyrics_0700);
-        lyrics.put(72.5f, R.string.lyrics_0725);
-        lyrics.put(77.5f, R.string.lyrics_0775);
-        lyrics.put(84.0f, R.string.lyrics_0840);
-        lyrics.put(89.0f, R.string.lyrics_0890);
-        lyrics.put(94.0f, R.string.lyrics_0940);
-        lyrics.put(100.5f, R.string.lyrics_1005);
-        lyrics.put(106.5f, R.string.lyrics_1065);
-        lyrics.put(109.5f, R.string.lyrics_1095);
-        lyrics.put(117.5f, R.string.lyrics_1175);
-        lyrics.put(127.5f, R.string.lyrics_1275);
+        mLyrics.put(67.0f, R.string.lyrics_0670);
+        mLyrics.put(70.0f, R.string.lyrics_0700);
+        mLyrics.put(72.5f, R.string.lyrics_0725);
+        mLyrics.put(77.5f, R.string.lyrics_0775);
+        mLyrics.put(84.0f, R.string.lyrics_0840);
+        mLyrics.put(89.0f, R.string.lyrics_0890);
+        mLyrics.put(94.0f, R.string.lyrics_0940);
+        mLyrics.put(100.5f, R.string.lyrics_1005);
+        mLyrics.put(106.5f, R.string.lyrics_1065);
+        mLyrics.put(109.5f, R.string.lyrics_1095);
+        mLyrics.put(117.5f, R.string.lyrics_1175);
+        mLyrics.put(127.5f, R.string.lyrics_1275);
     }
 
     @Override
@@ -85,8 +83,8 @@ public class CCVN extends Activity implements StarView.OnStarInteraction,
     protected void onPause() {
         super.onPause();
 
-        if (audioService != null) {
-            if (!audioService.isPlaying()) {
+        if (mAudioService != null) {
+            if (!mAudioService.isPlaying()) {
                 stopService(new Intent(this, AudioService.class));
             }
 
@@ -96,7 +94,7 @@ public class CCVN extends Activity implements StarView.OnStarInteraction,
 
     @Override
     public void onDestroy() {
-        socketServiceHandler.removeCallbacks(socketServiceTick);
+        mHandler.removeCallbacks(socketServiceTick);
 
         super.onDestroy();
     }
@@ -107,7 +105,7 @@ public class CCVN extends Activity implements StarView.OnStarInteraction,
         super.onWindowFocusChanged(hasFocus);
 
         if (hasFocus && Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            starView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+            mStarView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                     | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                     | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
                     | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
@@ -118,7 +116,7 @@ public class CCVN extends Activity implements StarView.OnStarInteraction,
 
     @Override
     public void onStarClick() {
-        if (audioService != null && audioService.isPlaying()) {
+        if (mAudioService != null && mAudioService.isPlaying()) {
             pausePlaying(true);
         } else {
             startPlaying(true);
@@ -127,11 +125,11 @@ public class CCVN extends Activity implements StarView.OnStarInteraction,
 
     @Override
     public void onServiceConnected(ComponentName name, IBinder service) {
-        audioService = (AudioServiceBinder) service;
-        audioService.setListener(this);
+        mAudioService = (AudioServiceBinder) service;
+        mAudioService.setListener(this);
 
         // this looks silly but we call it to initialize components' states
-        if (audioService.isPlaying()) {
+        if (mAudioService.isPlaying()) {
             startPlaying(false);
         } else {
             pausePlaying(false);
@@ -140,69 +138,96 @@ public class CCVN extends Activity implements StarView.OnStarInteraction,
 
     @Override
     public void onServiceDisconnected(ComponentName name) {
-        audioService = null;
+        mAudioService = null;
+    }
+
+    @Override
+    public void onBroadcastMessage(final float seconds, final String name) {
+        mHandler.post(new Runnable() {
+
+            @Override
+            public void run() {
+                if (mAudioService == null || !mAudioService.isPlaying()) {
+                    // only works if the player is not playing
+                    // this check will keeps us from working with our own
+                    // broadcast message, that's silly!
+                    long currentTime = System.currentTimeMillis();
+                    if (currentTime - mSyncUpdatedTime > 1000) {
+                        // checks to deal with double udp message (ipv4 and
+                        // ipv6)
+                        mSyncBaseTime = currentTime - ((long) (seconds * 1000));
+                        mSyncDeviceName = name;
+                        mSyncUpdatedTime = currentTime;
+
+                        mHandler.removeCallbacks(socketServiceTick);
+                        mHandler.post(socketServiceTick);
+                    }
+                }
+            }
+
+        });
     }
 
     public void startPlaying(boolean callService) {
-        if (callService && audioService != null) {
-            audioService.play();
+        if (callService && mAudioService != null) {
+            mAudioService.play();
         }
 
-        lblLyrics.setText("");
+        mLyricsView.setText("");
 
-        syncBaseTime = 0;
-        syncDeviceName = null;
-        syncUpdatedTime = 0;
+        mSyncBaseTime = 0;
+        mSyncDeviceName = null;
+        mSyncUpdatedTime = 0;
     }
 
     public void pausePlaying(boolean callService) {
         if (callService) {
-            audioService.pause();
+            mAudioService.pause();
         }
 
-        lblLyrics.setText("");
+        mLyricsView.setText("");
     }
 
     public void updateLyrics(float seconds, String fromDeviceName) {
         float maxTime = 0;
         int maxLyric = 0;
 
-        for (Float time : lyrics.keySet()) {
+        for (Float time : mLyrics.keySet()) {
             if (seconds > time && maxTime < time) {
                 maxTime = time;
-                maxLyric = lyrics.get(time);
+                maxLyric = mLyrics.get(time);
             }
         }
 
         if (maxLyric > 0) {
             if (fromDeviceName == null) {
-                lblLyrics.setText(maxLyric);
+                mLyricsView.setText(maxLyric);
             } else {
                 // this is from another device (sync mode)
                 // appends the device name
                 String line = getResources().getString(maxLyric);
                 String formatted = String.format("%s (%s)", line,
                         fromDeviceName);
-                lblLyrics.setText(formatted);
+                mLyricsView.setText(formatted);
             }
         } else {
-            lblLyrics.setText("");
+            mLyricsView.setText("");
         }
     }
 
-    protected Runnable socketServiceTick = new Runnable() {
+    final private Runnable socketServiceTick = new Runnable() {
 
         @Override
         public void run() {
-            if (syncBaseTime == 0
-                    || (audioService != null && audioService.isPlaying())) {
+            if (mSyncBaseTime == 0
+                    || (mAudioService != null && mAudioService.isPlaying())) {
                 // nothing to do here
                 return;
             }
 
             long currentTime = System.currentTimeMillis();
-            long baseOffset = currentTime - syncBaseTime;
-            long updatedOffset = currentTime - syncUpdatedTime;
+            long baseOffset = currentTime - mSyncBaseTime;
+            long updatedOffset = currentTime - mSyncUpdatedTime;
 
             if (updatedOffset > Configuration.SYNC_MAX_DURATION) {
                 // no signal from the host for too long
@@ -212,40 +237,12 @@ public class CCVN extends Activity implements StarView.OnStarInteraction,
             }
 
             // updates the lyrics using the normal flow code
-            updateLyrics(baseOffset / 1000.0f, syncDeviceName);
+            updateLyrics(baseOffset / 1000.0f, mSyncDeviceName);
 
             // schedule this function again...
-            socketServiceHandler.postDelayed(this, Configuration.TIMER_STEP);
+            mHandler.postDelayed(this, Configuration.TIMER_STEP);
         }
 
     };
-
-    @Override
-    public void onMessage(final float seconds, final String name) {
-        socketServiceHandler.post(new Runnable() {
-
-            @Override
-            public void run() {
-                if (audioService == null || !audioService.isPlaying()) {
-                    // only works if the player is not playing
-                    // this check will keeps us from working with our own
-                    // broadcast message
-                    // that's silly!
-                    long currentTime = System.currentTimeMillis();
-                    if (currentTime - syncUpdatedTime > 1000) {
-                        // checks to deal with double udp message (ipv4 and
-                        // ipv6)
-                        syncBaseTime = currentTime - ((long) (seconds * 1000));
-                        syncDeviceName = name;
-                        syncUpdatedTime = currentTime;
-
-                        socketServiceHandler.removeCallbacks(socketServiceTick);
-                        socketServiceHandler.post(socketServiceTick);
-                    }
-                }
-            }
-
-        });
-    }
 
 }

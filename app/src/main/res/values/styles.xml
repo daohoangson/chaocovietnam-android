@@ -8,7 +8,7 @@
     <dimen name="ccvn_lyric">25sp</dimen>
 
     <style name="CCVN" parent="Theme.AppCompat.Light.NoActionBar">
-
+        <item name="android:windowBackground">@null</item>
     </style>
 
 </resources>
