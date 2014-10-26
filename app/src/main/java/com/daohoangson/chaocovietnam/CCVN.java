@@ -10,6 +10,9 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
+import android.support.v4.view.GestureDetectorCompat;
+import android.view.GestureDetector;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.TextView;
 
@@ -17,11 +20,13 @@ import com.daohoangson.chaocovietnam.AudioService.AudioServiceBinder;
 
 import java.util.HashMap;
 
-public class CCVN extends Activity implements StarView.OnStarInteraction,
-        ServiceConnection, SocketService.SocketServiceListener {
+public class CCVN extends Activity implements ServiceConnection,
+        SocketService.SocketServiceListener,
+        GestureDetector.OnGestureListener, GestureDetector.OnDoubleTapListener {
 
-    private StarView mStarView = null;
-    private TextView mLyricsView = null;
+    private StarView mStarView;
+    private TextView mLyricsView;
+    private GestureDetectorCompat mGDC;
 
     private AudioService.AudioServiceBinder mAudioService = null;
 
@@ -38,10 +43,11 @@ public class CCVN extends Activity implements StarView.OnStarInteraction,
         setContentView(R.layout.main);
 
         mStarView = (StarView) findViewById(R.id.star);
-        mStarView.setListener(this);
-
         mLyricsView = (TextView) findViewById(R.id.lblLyrics);
         mLyricsView.setText("");
+
+        mGDC = new GestureDetectorCompat(this, this);
+        mGDC.setOnDoubleTapListener(this);
 
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR);
 
@@ -115,12 +121,68 @@ public class CCVN extends Activity implements StarView.OnStarInteraction,
     }
 
     @Override
-    public void onStarClick() {
+    public boolean onTouchEvent(MotionEvent event) {
+        mGDC.onTouchEvent(event);
+
+        return super.onTouchEvent(event);
+    }
+
+    @Override
+    public boolean onDown(MotionEvent motionEvent) {
+        return true;
+    }
+
+    @Override
+    public void onShowPress(MotionEvent motionEvent) {
+
+    }
+
+    @Override
+    public boolean onSingleTapUp(MotionEvent motionEvent) {
+        return false;
+    }
+
+    @Override
+    public boolean onScroll(MotionEvent motionEvent, MotionEvent motionEvent2, float v, float v2) {
+        return false;
+    }
+
+    @Override
+    public void onLongPress(MotionEvent motionEvent) {
+
+    }
+
+    @Override
+    public boolean onFling(MotionEvent motionEvent, MotionEvent motionEvent2, float v, float v2) {
+        return false;
+    }
+
+    @Override
+    public boolean onSingleTapConfirmed(MotionEvent motionEvent) {
         if (mAudioService != null && mAudioService.isPlaying()) {
-            pausePlaying(true);
+            pausePlaying(true, false);
         } else {
             startPlaying(true);
         }
+
+        return true;
+    }
+
+    @Override
+    public boolean onDoubleTap(MotionEvent motionEvent) {
+        if (mAudioService == null) {
+            startPlaying(true);
+        } else {
+            pausePlaying(true, true);
+            startPlaying(true);
+        }
+
+        return true;
+    }
+
+    @Override
+    public boolean onDoubleTapEvent(MotionEvent motionEvent) {
+        return false;
     }
 
     @Override
@@ -132,7 +194,7 @@ public class CCVN extends Activity implements StarView.OnStarInteraction,
         if (mAudioService.isPlaying()) {
             startPlaying(false);
         } else {
-            pausePlaying(false);
+            pausePlaying(false, false);
         }
     }
 
@@ -180,9 +242,9 @@ public class CCVN extends Activity implements StarView.OnStarInteraction,
         mSyncUpdatedTime = 0;
     }
 
-    public void pausePlaying(boolean callService) {
+    public void pausePlaying(boolean callService, boolean stop) {
         if (callService) {
-            mAudioService.pause();
+            mAudioService.pause(stop);
         }
 
         mLyricsView.setText("");
@@ -232,7 +294,7 @@ public class CCVN extends Activity implements StarView.OnStarInteraction,
             if (updatedOffset > Configuration.SYNC_MAX_DURATION) {
                 // no signal from the host for too long
                 // reset control state and stop looping
-                pausePlaying(false);
+                pausePlaying(false, false);
                 return;
             }
 
@@ -244,5 +306,4 @@ public class CCVN extends Activity implements StarView.OnStarInteraction,
         }
 
     };
-
 }

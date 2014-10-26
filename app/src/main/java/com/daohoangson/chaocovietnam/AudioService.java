@@ -70,12 +70,16 @@ public class AudioService extends Service implements ServiceConnection, SocketSe
 
     @Override
     public void onCompletion(MediaPlayer mediaPlayer) {
-        mBinder.pause();
+        mBinder.pause(true);
     }
 
     class AudioServiceBinder extends Binder {
-        public void pause() {
+        public void pause(boolean stop) {
             if (mMediaPlayer != null) {
+                if (stop) {
+                    mMediaPlayer.seekTo(0);
+                }
+
                 mMediaPlayer.pause();
 
                 stopForeground(true);
@@ -164,7 +168,7 @@ public class AudioService extends Service implements ServiceConnection, SocketSe
                 mHandler.postDelayed(this, Configuration.TIMER_STEP);
             } else {
                 if (mListener != null) {
-                    mListener.pausePlaying(false);
+                    mListener.pausePlaying(false, false);
                 }
             }
         }

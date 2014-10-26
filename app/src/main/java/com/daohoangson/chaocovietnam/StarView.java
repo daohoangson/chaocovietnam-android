@@ -7,10 +7,9 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.os.Build;
 import android.util.AttributeSet;
-import android.view.View;
 import android.widget.RelativeLayout;
 
-public class StarView extends RelativeLayout implements View.OnClickListener {
+public class StarView extends RelativeLayout {
 
     private static final float STAR_OUTER_LENGTH = 1.0f;
     private static final float STAR_INNER_LENGTH = 0.38f;
@@ -18,8 +17,6 @@ public class StarView extends RelativeLayout implements View.OnClickListener {
     private Path mPath;
     private Paint mPaint;
     private int mHeightLyric;
-
-    private OnStarInteraction mListener;
 
     public StarView(Context context) {
         super(context);
@@ -97,17 +94,6 @@ public class StarView extends RelativeLayout implements View.OnClickListener {
         canvas.drawPath(mPath, mPaint);
     }
 
-    @Override
-    public void onClick(View view) {
-        if (mListener != null) {
-            mListener.onStarClick();
-        }
-    }
-
-    public void setListener(OnStarInteraction listener) {
-        mListener = listener;
-    }
-
     private void setupStarView() {
         mPaint = new Paint();
         mPaint.setColor(getResources().getColor(R.color.ccvn_star));
@@ -115,11 +101,5 @@ public class StarView extends RelativeLayout implements View.OnClickListener {
         mPaint.setFlags(Paint.ANTI_ALIAS_FLAG);
 
         mHeightLyric = getResources().getDimensionPixelSize(R.dimen.ccvn_lyric);
-
-        setOnClickListener(this);
-    }
-
-    public interface OnStarInteraction {
-        public void onStarClick();
     }
 }
