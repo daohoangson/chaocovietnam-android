@@ -17,6 +17,9 @@ public class StarView extends RelativeLayout {
     private Path mPath;
     private Paint mPaint;
     private int mHeightLyric;
+    private int mWidthProgress;
+
+    private float mProgress;
 
     public StarView(Context context) {
         super(context);
@@ -92,6 +95,15 @@ public class StarView extends RelativeLayout {
         super.onDraw(canvas);
 
         canvas.drawPath(mPath, mPaint);
+
+        final int height = getHeight();
+        final int progress = (int) (height - height * mProgress);
+        canvas.drawRect(0, progress, mWidthProgress, height, mPaint);
+    }
+
+    public void setProgress(float progress) {
+        mProgress = progress;
+        postInvalidate();
     }
 
     private void setupStarView() {
@@ -101,5 +113,6 @@ public class StarView extends RelativeLayout {
         mPaint.setFlags(Paint.ANTI_ALIAS_FLAG);
 
         mHeightLyric = getResources().getDimensionPixelSize(R.dimen.ccvn_lyric);
+        mWidthProgress = getResources().getDimensionPixelSize(R.dimen.ccvn_progress);
     }
 }

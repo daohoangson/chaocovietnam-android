@@ -113,6 +113,20 @@ public class AudioService extends Service implements ServiceConnection, SocketSe
             }
         }
 
+        public void seekRelative(float percentage) {
+            if (mMediaPlayer != null) {
+                final int current = getCurrentPosition();
+                final int duration = getDuration();
+                final int delta = (int) (duration * percentage);
+                final int seekTo = Math.min(duration, Math.max(0, current + delta));
+                mMediaPlayer.seekTo(seekTo);
+
+                if (mListener != null) {
+                    mListener.updateLyrics(seekTo / 1000.0f, null);
+                }
+            }
+        }
+
         public boolean isPlaying() {
             return mMediaPlayer != null && mMediaPlayer.isPlaying();
         }
@@ -120,6 +134,14 @@ public class AudioService extends Service implements ServiceConnection, SocketSe
         public int getCurrentPosition() {
             if (mMediaPlayer != null) {
                 return mMediaPlayer.getCurrentPosition();
+            } else {
+                return 0;
+            }
+        }
+
+        public int getDuration() {
+            if (mMediaPlayer != null) {
+                return mMediaPlayer.getDuration();
             } else {
                 return 0;
             }

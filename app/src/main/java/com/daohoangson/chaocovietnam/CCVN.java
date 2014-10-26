@@ -11,6 +11,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.support.v4.view.GestureDetectorCompat;
+import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
@@ -143,8 +144,29 @@ public class CCVN extends Activity implements ServiceConnection,
     }
 
     @Override
-    public boolean onScroll(MotionEvent motionEvent, MotionEvent motionEvent2, float v, float v2) {
-        return false;
+    public boolean onScroll(MotionEvent motionEvent, MotionEvent motionEvent2, float v1, float v2) {
+        if (mAudioService == null) {
+            return false;
+        }
+
+        final float absV1 = Math.abs(v1);
+        final float absV2 = Math.abs(v2);
+        final float v;
+        final float r;
+        if (absV1 > absV2) {
+            v = v1 * -1;
+            r = mStarView.getWidth();
+        } else {
+            v = v2;
+            r = mStarView.getHeight();
+        }
+
+        final float percentage = v / r;
+        if (Math.abs(percentage) > 0.01) {
+            mAudioService.seekRelative(percentage);
+        }
+
+        return true;
     }
 
     @Override
@@ -275,6 +297,8 @@ public class CCVN extends Activity implements ServiceConnection,
         } else {
             mLyricsView.setText("");
         }
+
+        mStarView.setProgress(mAudioService.getCurrentPosition() * 1.0f / mAudioService.getDuration());
     }
 
     final private Runnable socketServiceTick = new Runnable() {
