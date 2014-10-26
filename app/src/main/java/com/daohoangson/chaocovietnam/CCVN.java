@@ -2,18 +2,30 @@ package com.daohoangson.chaocovietnam;
 
 import android.annotation.TargetApi;
 import android.app.Activity;
+import android.app.Dialog;
+import android.app.Presentation;
 import android.content.ComponentName;
+import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.ActivityInfo;
+import android.graphics.pdf.PdfRenderer;
+import android.hardware.display.DisplayManager;
+import android.media.MediaRouter;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
+import android.support.annotation.NonNull;
 import android.support.v4.view.GestureDetectorCompat;
+import android.util.Log;
+import android.util.SparseArray;
+import android.view.Display;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.TextView;
 
 import com.daohoangson.chaocovietnam.AudioService.AudioServiceBinder;
@@ -24,6 +36,7 @@ public class CCVN extends Activity implements ServiceConnection,
         SocketService.SocketServiceListener,
         GestureDetector.OnGestureListener, GestureDetector.OnDoubleTapListener {
 
+    private static final String TAG = "CCVN";
     private static final String ARG_INSTRUCTION_GONE = "instructionGone";
 
     private StarView mStarView;
@@ -39,6 +52,10 @@ public class CCVN extends Activity implements ServiceConnection,
     private long mSyncBaseTime = 0;
     private String mSyncDeviceName = null;
     private long mSyncUpdatedTime = 0;
+
+    private final SparseArray<Dialog> mPresentations = new SparseArray<Dialog>();
+    private DisplayManager mDisplayManager;
+    private Object mDisplayListener;
 
     final private HashMap<Float, Integer> mLyrics = new HashMap<Float, Integer>();
 
@@ -81,6 +98,9 @@ public class CCVN extends Activity implements ServiceConnection,
         mLyrics.put(109.5f, R.string.lyrics_1095);
         mLyrics.put(117.5f, R.string.lyrics_1175);
         mLyrics.put(127.5f, R.string.lyrics_1275);
+
+        // presentation support
+        presentationOnCreate();
     }
 
     @Override
@@ -101,6 +121,8 @@ public class CCVN extends Activity implements ServiceConnection,
                 }
             }, 3000);
         }
+
+        presentationOnResume();
     }
 
     @Override
@@ -114,6 +136,8 @@ public class CCVN extends Activity implements ServiceConnection,
 
             unbindService(this);
         }
+
+        presentationOnPause();
     }
 
     @Override
@@ -124,7 +148,7 @@ public class CCVN extends Activity implements ServiceConnection,
     }
 
     @Override
-    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+    protected void onRestoreInstanceState(@NonNull Bundle savedInstanceState) {
         if (savedInstanceState != null) {
             if (savedInstanceState.containsKey(ARG_INSTRUCTION_GONE)) {
                 mInstructionGone = savedInstanceState.getBoolean(ARG_INSTRUCTION_GONE);
@@ -135,7 +159,7 @@ public class CCVN extends Activity implements ServiceConnection,
     }
 
     @Override
-    protected void onSaveInstanceState(Bundle outState) {
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
         outState.putBoolean(ARG_INSTRUCTION_GONE, mInstructionGone);
 
         super.onSaveInstanceState(outState);
@@ -310,6 +334,7 @@ public class CCVN extends Activity implements ServiceConnection,
     public void updateLyrics(float seconds, String fromDeviceName) {
         float maxTime = 0;
         int maxLyric = 0;
+        final float progress = mAudioService.getCurrentPosition() * 1.0f / mAudioService.getDuration();
 
         for (Float time : mLyrics.keySet()) {
             if (seconds > time && maxTime < time) {
@@ -318,22 +343,114 @@ public class CCVN extends Activity implements ServiceConnection,
             }
         }
 
+        final String lyric;
         if (maxLyric > 0) {
             if (fromDeviceName == null) {
-                mLyricsView.setText(maxLyric);
+                lyric = getResources().getString(maxLyric);
             } else {
                 // this is from another device (sync mode)
                 // appends the device name
                 String line = getResources().getString(maxLyric);
-                String formatted = String.format("%s (%s)", line,
-                        fromDeviceName);
-                mLyricsView.setText(formatted);
+                lyric = String.format("%s (%s)", line, fromDeviceName);
             }
         } else {
-            mLyricsView.setText("");
+            lyric = "";
         }
 
-        mStarView.setProgress(mAudioService.getCurrentPosition() * 1.0f / mAudioService.getDuration());
+        mLyricsView.setText(lyric);
+        mStarView.setProgress(progress);
+
+        presentationUpdateLyrics(lyric, progress);
+    }
+
+    @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
+    private void showPresentation(Display display) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR1) {
+            return;
+        }
+
+        final int displayId = display.getDisplayId();
+        if (mPresentations.get(displayId) != null) {
+            return;
+        }
+
+        Dialog presentation = new CcvnPresentation(this, display);
+        presentation.show();
+        presentation.setOnDismissListener(new DialogInterface.OnDismissListener() {
+            @Override
+            public void onDismiss(DialogInterface dialogInterface) {
+                mPresentations.delete(displayId);
+            }
+        });
+
+        mPresentations.put(displayId, presentation);
+    }
+
+    @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
+    private void presentationUpdateLyrics(String lyric, float progress) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR1) {
+            return;
+        }
+
+        for (int i = 0; i < mPresentations.size(); i++) {
+            CcvnPresentation presentation = (CcvnPresentation) mPresentations.valueAt(i);
+            presentation.getLyricsView().setText(lyric);
+            presentation.getStarView().setProgress(progress);
+        }
+    }
+
+    @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
+    private void presentationOnCreate() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR1) {
+            return;
+        }
+
+        mDisplayManager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
+        mDisplayListener = new DisplayManager.DisplayListener() {
+            @Override
+            public void onDisplayAdded(int displayId) {
+                showPresentation(mDisplayManager.getDisplay(displayId));
+            }
+
+            @Override
+            public void onDisplayRemoved(int displayId) {
+                // do nothing
+            }
+
+            @Override
+            public void onDisplayChanged(int displayId) {
+                // do nothing
+            }
+        };
+    }
+
+    @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
+    private void presentationOnResume() {
+        if (mDisplayManager == null || mDisplayListener == null) {
+            return;
+        }
+
+        Display[] displays = mDisplayManager.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION);
+        for (Display display : displays) {
+            showPresentation(display);
+        }
+
+        mDisplayManager.registerDisplayListener((DisplayManager.DisplayListener) mDisplayListener, null);
+    }
+
+    @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
+    private void presentationOnPause() {
+        if (mDisplayManager == null || mDisplayListener == null) {
+            return;
+        }
+
+        mDisplayManager.unregisterDisplayListener((DisplayManager.DisplayListener) mDisplayListener);
+
+        for (int i = 0; i < mPresentations.size(); i++) {
+            Dialog presentation = mPresentations.valueAt(i);
+            presentation.dismiss();
+        }
+        mPresentations.clear();
     }
 
     final private Runnable socketServiceTick = new Runnable() {
