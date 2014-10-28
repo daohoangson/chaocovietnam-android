@@ -6,10 +6,15 @@ import android.content.Context;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.Display;
+import android.view.View;
 import android.widget.TextView;
 
+import com.daohoangson.chaocovietnam.adapter.Config;
+import com.daohoangson.chaocovietnam.widget.StarView;
+
 @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
-public class CcvnPresentation extends Presentation {
+public class CcvnPresentation extends Presentation implements
+        Config.OnConfigChangeListener {
 
     private StarView mStarView;
     private TextView mLyricsView;
@@ -32,6 +37,16 @@ public class CcvnPresentation extends Presentation {
         mStarView = (StarView) findViewById(R.id.star);
         mLyricsView = (TextView) findViewById(R.id.lblLyrics);
         mLyricsView.setText("");
+    }
+
+    @Override
+    public void onConfigChange(Config config) {
+        mLyricsView.setVisibility(config.getShowLyrics() ? View.VISIBLE : View.GONE);
+        mStarView.setProgressVisibility(config.getShowProgress());
+    }
+
+    public void applyConfig(Config config) {
+        config.setListener(this);
     }
 
     public StarView getStarView() {

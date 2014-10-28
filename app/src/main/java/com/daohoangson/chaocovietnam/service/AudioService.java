@@ -1,4 +1,4 @@
-package com.daohoangson.chaocovietnam;
+package com.daohoangson.chaocovietnam.service;
 
 import android.app.Notification;
 import android.app.PendingIntent;
@@ -12,6 +12,10 @@ import android.os.IBinder;
 import android.media.MediaPlayer;
 import android.os.PowerManager;
 import android.support.v4.app.NotificationCompat;
+
+import com.daohoangson.chaocovietnam.CCVN;
+import com.daohoangson.chaocovietnam.Configuration;
+import com.daohoangson.chaocovietnam.R;
 
 public class AudioService extends Service implements ServiceConnection, SocketService.SocketServiceListener, MediaPlayer.OnCompletionListener {
 
@@ -73,7 +77,7 @@ public class AudioService extends Service implements ServiceConnection, SocketSe
         mBinder.pause(true);
     }
 
-    class AudioServiceBinder extends Binder {
+    public class AudioServiceBinder extends Binder {
         public void pause(boolean stop) {
             if (mMediaPlayer != null) {
                 if (stop) {

@@ -1,4 +1,4 @@
-package com.daohoangson.chaocovietnam;
+package com.daohoangson.chaocovietnam.widget;
 
 import android.animation.LayoutTransition;
 import android.annotation.TargetApi;
@@ -10,6 +10,8 @@ import android.os.Build;
 import android.util.AttributeSet;
 import android.widget.RelativeLayout;
 
+import com.daohoangson.chaocovietnam.R;
+
 public class StarView extends RelativeLayout {
 
     private static final float STAR_OUTER_LENGTH = 1.0f;
@@ -20,6 +22,7 @@ public class StarView extends RelativeLayout {
     private int mHeightLyric;
     private int mWidthProgress;
 
+    private boolean mShowProgress;
     private float mProgress;
 
     public StarView(Context context) {
@@ -97,9 +100,16 @@ public class StarView extends RelativeLayout {
 
         canvas.drawPath(mPath, mPaint);
 
-        final int height = getHeight();
-        final int progress = (int) (height - height * mProgress);
-        canvas.drawRect(0, progress, mWidthProgress, height, mPaint);
+        if (mShowProgress) {
+            final int height = getHeight();
+            final int progress = (int) (height - height * mProgress);
+            canvas.drawRect(0, progress, mWidthProgress, height, mPaint);
+        }
+    }
+
+    public void setProgressVisibility(boolean showProgress) {
+        mShowProgress = showProgress;
+        postInvalidate();
     }
 
     public void setProgress(float progress) {
@@ -115,6 +125,9 @@ public class StarView extends RelativeLayout {
 
         mHeightLyric = getResources().getDimensionPixelSize(R.dimen.ccvn_lyric);
         mWidthProgress = getResources().getDimensionPixelSize(R.dimen.ccvn_progress);
+
+        mShowProgress = true;
+        mProgress = 0f;
 
         setupAnimation();
     }

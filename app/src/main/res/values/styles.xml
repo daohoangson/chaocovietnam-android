@@ -2,6 +2,7 @@
 <resources>
 
     <color name="ccvn_flag">#f00</color>
+    <color name="ccvn_dark_flag">#9b0000</color>
     <color name="ccvn_star">#ff0</color>
     <color name="ccvn_text">#fff</color>
     <color name="ccvn_instruction">#66ffffff</color>
@@ -9,9 +10,14 @@
     <dimen name="ccvn_instruction">25sp</dimen>
     <dimen name="ccvn_lyric">25sp</dimen>
     <dimen name="ccvn_progress">2dp</dimen>
+    <dimen name="ccvn_padding">10dip</dimen>
+    <dimen name="ccvn_display_width">100dp</dimen>
+    <dimen name="ccvn_display_height">70dp</dimen>
 
     <style name="CCVN" parent="Theme.AppCompat.Light.NoActionBar">
-        <item name="android:windowBackground">@null</item>
+        <item name="colorPrimary">@color/ccvn_flag</item>
+        <item name="colorPrimaryDark">@color/ccvn_dark_flag</item>
+        <item name="android:background">@color/ccvn_flag</item>
     </style>
 
 </resources>

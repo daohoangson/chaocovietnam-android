@@ -3,4 +3,8 @@
     <string name="app_name">Chao co</string>
     <string name="notification">Playing Vietnamese National Anthem</string>
     <string name="instruction">Tap to play, drag to seek.</string>
+
+    <string name="display_x">Display %1$s</string>
+    <string name="show_lyrics">Show Lyrics</string>
+    <string name="show_progress">Show Progress</string>
 </resources>

@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.daohoangson.chaocovietnam.StarView xmlns:android="http://schemas.android.com/apk/res/android"
+<com.daohoangson.chaocovietnam.widget.StarView xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/star"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@color/ccvn_flag">
+    android:layout_height="match_parent">
 
     <TextView
         android:id="@+id/lblInstruction"
@@ -24,6 +23,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
+        android:background="@android:color/transparent"
         android:ellipsize="end"
         android:gravity="center"
         android:lines="1"
@@ -33,4 +33,4 @@
         android:textColor="@color/ccvn_text"
         android:textSize="@dimen/ccvn_lyric" />
 
-</com.daohoangson.chaocovietnam.StarView>
+</com.daohoangson.chaocovietnam.widget.StarView>

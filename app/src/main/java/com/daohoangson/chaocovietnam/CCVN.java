@@ -13,18 +13,26 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.Vibrator;
 import android.support.v4.app.FragmentActivity;
+import android.support.v4.app.FragmentManager;
+import android.support.v4.app.FragmentTransaction;
 import android.util.SparseArray;
 import android.view.Display;
 import android.view.View;
 import android.widget.FrameLayout;
 
-import com.daohoangson.chaocovietnam.AudioService.AudioServiceBinder;
+import com.daohoangson.chaocovietnam.adapter.ConfigAdapter;
+import com.daohoangson.chaocovietnam.service.AudioService;
+import com.daohoangson.chaocovietnam.service.AudioService.AudioServiceBinder;
+import com.daohoangson.chaocovietnam.fragment.ConfigFragment;
 import com.daohoangson.chaocovietnam.fragment.FlagFragment;
+import com.daohoangson.chaocovietnam.service.SocketService;
 
 import java.util.HashMap;
 
 public class CCVN extends FragmentActivity implements
+        ConfigFragment.Caller,
         FlagFragment.Caller,
         ServiceConnection,
         SocketService.SocketServiceListener {
@@ -34,12 +42,15 @@ public class CCVN extends FragmentActivity implements
     private FrameLayout mContainer;
     private FlagFragment mFlagFragment;
 
+    private int mContainerSystemUiVisibility = -1;
+
     final private Handler mHandler = new Handler();
     private long mSyncBaseTime = 0;
     private String mSyncDeviceName = null;
     private long mSyncUpdatedTime = 0;
 
-    private final SparseArray<Dialog> mPresentations = new SparseArray<Dialog>();
+    private ConfigAdapter mConfigAdapter;
+    final private SparseArray<Dialog> mPresentations = new SparseArray<Dialog>();
     private DisplayManager mDisplayManager;
     private Object mDisplayListener;
 
@@ -79,6 +90,8 @@ public class CCVN extends FragmentActivity implements
         mLyrics.put(117.5f, R.string.lyrics_1175);
         mLyrics.put(127.5f, R.string.lyrics_1275);
 
+        mConfigAdapter = new ConfigAdapter(this, savedInstanceState);
+
         flagOnCreate(savedInstanceState);
         presentationOnCreate();
     }
@@ -115,19 +128,11 @@ public class CCVN extends FragmentActivity implements
         super.onDestroy();
     }
 
-    @TargetApi(Build.VERSION_CODES.KITKAT)
     @Override
-    public void onWindowFocusChanged(boolean hasFocus) {
-        super.onWindowFocusChanged(hasFocus);
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
 
-        if (hasFocus && Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            mContainer.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                    | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                    | View.SYSTEM_UI_FLAG_FULLSCREEN
-                    | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
-        }
+        mConfigAdapter.onSaveInstanceState(outState);
     }
 
     @Override
@@ -146,6 +151,17 @@ public class CCVN extends FragmentActivity implements
     @Override
     public void onServiceDisconnected(ComponentName name) {
         mAudioService = null;
+    }
+
+    @Override
+    public void onBackPressed() {
+        FragmentManager fragmentManager = getSupportFragmentManager();
+        if (fragmentManager.getBackStackEntryCount() > 0) {
+            flipView();
+            return;
+        }
+
+        super.onBackPressed();
     }
 
     @Override
@@ -178,6 +194,53 @@ public class CCVN extends FragmentActivity implements
     @Override
     public void setFlagFragment(FlagFragment flagFragment) {
         mFlagFragment = flagFragment;
+
+        immersiveSetEnabled(mFlagFragment != null);
+
+        if (mFlagFragment != null) {
+            mFlagFragment.applyConfig(mConfigAdapter.getPrimaryConfig());
+        }
+    }
+
+    @Override
+    public void setConfigFragment(ConfigFragment configFragment) {
+        if (configFragment != null) {
+            configFragment.setListAdapter(mConfigAdapter);
+        } else {
+            // config fragment is closing, we need to apply the new configs
+            if (mFlagFragment != null) {
+                mFlagFragment.applyConfig(mConfigAdapter.getPrimaryConfig());
+            }
+
+            // for presentations too
+            for (int i = 0, l = mPresentations.size(); i < l; i++) {
+                int displayId = mPresentations.keyAt(i);
+                CcvnPresentation presentation = (CcvnPresentation) mPresentations.get(displayId);
+
+                presentation.applyConfig(mConfigAdapter.getPresentationConfig(displayId));
+            }
+        }
+    }
+
+    @Override
+    public void flipView() {
+        final FragmentManager fragmentManager = getSupportFragmentManager();
+
+        if (fragmentManager.getBackStackEntryCount() > 0) {
+            getSupportFragmentManager().popBackStack();
+            return;
+        }
+
+        final FragmentTransaction transaction = fragmentManager.beginTransaction();
+
+        // TODO: card flip
+        transaction.setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out);
+
+        transaction.replace(R.id.container, new ConfigFragment())
+                .addToBackStack(null)
+                .commit();
+
+        ((Vibrator) getSystemService(Context.VIBRATOR_SERVICE)).vibrate(10);
     }
 
     @Override
@@ -270,15 +333,18 @@ public class CCVN extends FragmentActivity implements
             return;
         }
 
-        Dialog presentation = new CcvnPresentation(this, display);
+        CcvnPresentation presentation = new CcvnPresentation(this, display);
         presentation.show();
         presentation.setOnDismissListener(new DialogInterface.OnDismissListener() {
             @Override
             public void onDismiss(DialogInterface dialogInterface) {
                 mPresentations.delete(displayId);
+                mConfigAdapter.deletePresentationConfig(displayId);
             }
         });
 
+        mConfigAdapter.addPresentationConfig(presentation.getContext(), display);
+        presentation.applyConfig(mConfigAdapter.getPresentationConfig(displayId));
         mPresentations.put(displayId, presentation);
     }
 
@@ -347,6 +413,32 @@ public class CCVN extends FragmentActivity implements
             presentation.dismiss();
         }
         mPresentations.clear();
+    }
+
+    @TargetApi(Build.VERSION_CODES.KITKAT)
+    private void immersiveSetEnabled(boolean enabled) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
+            return;
+        }
+
+        if (mContainer == null) {
+            return;
+        }
+
+        if (mContainerSystemUiVisibility == -1) {
+            mContainerSystemUiVisibility = mContainer.getSystemUiVisibility();
+        }
+
+        if (enabled) {
+            mContainer.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+        } else {
+            mContainer.setSystemUiVisibility(mContainerSystemUiVisibility);
+        }
     }
 
     final private Runnable socketServiceTick = new Runnable() {

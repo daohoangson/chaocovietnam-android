@@ -13,9 +13,14 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 
 import com.daohoangson.chaocovietnam.R;
-import com.daohoangson.chaocovietnam.StarView;
+import com.daohoangson.chaocovietnam.adapter.Config;
+import com.daohoangson.chaocovietnam.widget.StarView;
 
-public class FlagFragment extends Fragment implements GestureDetector.OnGestureListener, GestureDetector.OnDoubleTapListener, View.OnTouchListener {
+public class FlagFragment extends Fragment implements
+        Config.OnConfigChangeListener,
+        GestureDetector.OnGestureListener,
+        GestureDetector.OnDoubleTapListener,
+        View.OnTouchListener {
 
     private static final String ARG_INSTRUCTION_GONE = "instructionGone";
 
@@ -136,7 +141,11 @@ public class FlagFragment extends Fragment implements GestureDetector.OnGestureL
 
     @Override
     public void onLongPress(MotionEvent motionEvent) {
+        if (mCaller == null) {
+            return;
+        }
 
+        mCaller.flipView();
     }
 
     @Override
@@ -176,6 +185,16 @@ public class FlagFragment extends Fragment implements GestureDetector.OnGestureL
         return false;
     }
 
+    @Override
+    public void onConfigChange(Config config) {
+        mLyricsView.setVisibility(config.getShowLyrics() ? View.VISIBLE : View.GONE);
+        mStarView.setProgressVisibility(config.getShowProgress());
+    }
+
+    public void applyConfig(Config config) {
+        config.setListener(this);
+    }
+
     public StarView getStarView() {
         return mStarView;
     }
@@ -186,6 +205,8 @@ public class FlagFragment extends Fragment implements GestureDetector.OnGestureL
 
     public interface Caller {
         public void setFlagFragment(FlagFragment flagFragment);
+
+        public void flipView();
 
         public void startPlaying(boolean callService);
 

@@ -1,4 +1,4 @@
-package com.daohoangson.chaocovietnam;
+package com.daohoangson.chaocovietnam.service;
 
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -18,6 +18,9 @@ import android.net.wifi.WifiManager;
 import android.os.Binder;
 import android.os.IBinder;
 import android.util.Log;
+
+import com.daohoangson.chaocovietnam.BuildConfig;
+import com.daohoangson.chaocovietnam.Configuration;
 
 public class SocketService extends Service {
     private final static String TAG = "SocketService";
