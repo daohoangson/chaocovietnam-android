@@ -17,6 +17,10 @@ import android.os.Vibrator;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
+import android.support.v7.media.MediaControlIntent;
+import android.support.v7.media.MediaRouteSelector;
+import android.support.v7.media.MediaRouter;
+import android.util.Log;
 import android.util.SparseArray;
 import android.view.Display;
 import android.view.View;
@@ -30,6 +34,7 @@ import com.daohoangson.chaocovietnam.fragment.FlagFragment;
 import com.daohoangson.chaocovietnam.service.SocketService;
 
 import java.util.HashMap;
+import java.util.List;
 
 public class CCVN extends FragmentActivity implements
         ConfigFragment.Caller,
@@ -51,8 +56,8 @@ public class CCVN extends FragmentActivity implements
 
     private ConfigAdapter mConfigAdapter;
     final private SparseArray<Dialog> mPresentations = new SparseArray<Dialog>();
-    private DisplayManager mDisplayManager;
-    private Object mDisplayListener;
+    private MediaRouter mMediaRouter;
+    private MediaRouter.Callback mMediaRouterCallback;
 
     final private HashMap<Float, Integer> mLyrics = new HashMap<Float, Integer>();
 
@@ -97,13 +102,18 @@ public class CCVN extends FragmentActivity implements
     }
 
     @Override
+    protected void onStart() {
+        super.onStart();
+
+        presentationOnStart();
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
 
         startService(new Intent(this, AudioService.class));
         bindService(new Intent(this, AudioService.class), this, BIND_AUTO_CREATE);
-
-        presentationOnResume();
     }
 
     @Override
@@ -117,8 +127,13 @@ public class CCVN extends FragmentActivity implements
 
             unbindService(this);
         }
+    }
 
-        presentationOnPause();
+    @Override
+    protected void onStop() {
+        super.onStop();
+
+        presentationOnStop();
     }
 
     @Override
@@ -323,13 +338,19 @@ public class CCVN extends FragmentActivity implements
     }
 
     @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
-    private void showPresentation(Display display) {
+    private void showPresentation(MediaRouter.RouteInfo route) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR1) {
             return;
         }
 
+        final Display display = route.getPresentationDisplay();
+        if (display == null) {
+            // the route has no display
+            return;
+        }
+
         final int displayId = display.getDisplayId();
-        if (mPresentations.get(displayId) != null) {
+        if (mPresentations.indexOfKey(displayId) >= 0) {
             return;
         }
 
@@ -348,12 +369,7 @@ public class CCVN extends FragmentActivity implements
         mPresentations.put(displayId, presentation);
     }
 
-    @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
     private void presentationUpdateLyrics(String lyric, float progress) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR1) {
-            return;
-        }
-
         for (int i = 0; i < mPresentations.size(); i++) {
             CcvnPresentation presentation = (CcvnPresentation) mPresentations.valueAt(i);
             presentation.getLyricsView().setText(lyric);
@@ -361,52 +377,43 @@ public class CCVN extends FragmentActivity implements
         }
     }
 
-    @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
     private void presentationOnCreate() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR1) {
-            return;
-        }
-
-        mDisplayManager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
-        mDisplayListener = new DisplayManager.DisplayListener() {
+        mMediaRouter = MediaRouter.getInstance(this);
+        mMediaRouterCallback = new MediaRouter.Callback() {
             @Override
-            public void onDisplayAdded(int displayId) {
-                showPresentation(mDisplayManager.getDisplay(displayId));
-            }
-
-            @Override
-            public void onDisplayRemoved(int displayId) {
-                // do nothing
-            }
-
-            @Override
-            public void onDisplayChanged(int displayId) {
-                // do nothing
+            public void onRouteAdded(MediaRouter router, MediaRouter.RouteInfo route) {
+                if (route.supportsControlCategory(MediaControlIntent.CATEGORY_LIVE_VIDEO)) {
+                    showPresentation(route);
+                }
             }
         };
     }
 
-    @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
-    private void presentationOnResume() {
-        if (mDisplayManager == null || mDisplayListener == null) {
+    private void presentationOnStart() {
+        if (mMediaRouter == null || mMediaRouterCallback == null) {
             return;
         }
 
-        Display[] displays = mDisplayManager.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION);
-        for (Display display : displays) {
-            showPresentation(display);
+        List<MediaRouter.RouteInfo> routes = mMediaRouter.getRoutes();
+        for (MediaRouter.RouteInfo route : routes) {
+            showPresentation(route);
         }
 
-        mDisplayManager.registerDisplayListener((DisplayManager.DisplayListener) mDisplayListener, null);
+        MediaRouteSelector selector = new MediaRouteSelector.Builder()
+                .addControlCategory(MediaControlIntent.CATEGORY_LIVE_AUDIO)
+                .addControlCategory(MediaControlIntent.CATEGORY_LIVE_VIDEO)
+                .addControlCategory(MediaControlIntent.CATEGORY_REMOTE_PLAYBACK)
+                .build();
+
+        mMediaRouter.addCallback(selector, mMediaRouterCallback, MediaRouter.CALLBACK_FLAG_REQUEST_DISCOVERY);
     }
 
-    @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
-    private void presentationOnPause() {
-        if (mDisplayManager == null || mDisplayListener == null) {
+    private void presentationOnStop() {
+        if (mMediaRouter == null || mMediaRouterCallback == null) {
             return;
         }
 
-        mDisplayManager.unregisterDisplayListener((DisplayManager.DisplayListener) mDisplayListener);
+        mMediaRouter.removeCallback(mMediaRouterCallback);
 
         for (int i = 0; i < mPresentations.size(); i++) {
             Dialog presentation = mPresentations.valueAt(i);
