@@ -23,7 +23,6 @@
             android:layout_height="wrap_content"
             android:text="@string/display_x"
             android:textAppearance="?android:attr/textAppearanceMedium"
-            android:textColor="@color/ccvn_star"
             android:textStyle="bold" />
 
         <CheckBox
@@ -31,14 +30,14 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/show_lyrics"
-            android:textColor="@color/ccvn_star" />
+            android:textAppearance="?android:attr/textAppearanceSmall" />
 
         <CheckBox
             android:id="@+id/chkShowProgress"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/show_progress"
-            android:textColor="@color/ccvn_star" />
+            android:textAppearance="?android:attr/textAppearanceSmall" />
 
     </LinearLayout>
 

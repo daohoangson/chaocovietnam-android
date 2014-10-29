@@ -15,9 +15,12 @@
     <dimen name="ccvn_display_height">70dp</dimen>
 
     <style name="CCVN" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="colorAccent">@color/ccvn_star</item>
         <item name="colorPrimary">@color/ccvn_flag</item>
         <item name="colorPrimaryDark">@color/ccvn_dark_flag</item>
         <item name="android:background">@color/ccvn_flag</item>
+        <item name="android:textColor">@color/ccvn_star</item>
+        <item name="android:textColorPrimaryDisableOnly">@color/ccvn_star</item>
     </style>
 
 </resources>
