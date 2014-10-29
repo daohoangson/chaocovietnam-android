@@ -42,9 +42,9 @@ public class ConfigAdapter extends BaseAdapter implements CompoundButton.OnCheck
         WindowManager windowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
         Display primaryDisplay = windowManager.getDefaultDisplay();
         mPrimaryConfig.resetDisplayMax();
+        mPrimaryConfig.setUpdatePref(true);
         mPrimaryConfig.populateDisplay(context, primaryDisplay);
-        mPrimaryConfig.setShowLyrics(true);
-        mPrimaryConfig.setShowProgress(true);
+        mPrimaryConfig.populateDefaults(context);
     }
 
     @Override
@@ -113,10 +113,10 @@ public class ConfigAdapter extends BaseAdapter implements CompoundButton.OnCheck
 
             switch (compoundButton.getId()) {
                 case R.id.chkShowLyrics:
-                    config.setShowLyrics(checked);
+                    config.setShowLyrics(mContext, checked);
                     break;
                 case R.id.chkShowProgress:
-                    config.setShowProgress(checked);
+                    config.setShowProgress(mContext, checked);
                     break;
             }
 
@@ -144,7 +144,7 @@ public class ConfigAdapter extends BaseAdapter implements CompoundButton.OnCheck
         } else {
             final Config config = new Config();
             config.populateDisplay(outerContext, display);
-            config.populateDefaults();
+            config.populateDefaults(mContext);
             mPresentationConfigs.put(displayId, config);
         }
 

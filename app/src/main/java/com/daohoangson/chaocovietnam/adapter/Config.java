@@ -8,12 +8,15 @@ import android.os.Parcelable;
 import android.util.DisplayMetrics;
 import android.view.Display;
 
+import com.daohoangson.chaocovietnam.Configuration;
 import com.daohoangson.chaocovietnam.R;
 
 public class Config implements Parcelable {
 
     private static int maxDisplayWidth = 0;
     private static int maxDisplayHeight = 0;
+
+    private boolean mUpdatePref;
 
     private boolean hasDisplay;
     private int displayId;
@@ -74,6 +77,10 @@ public class Config implements Parcelable {
         }
     }
 
+    public void setUpdatePref(boolean updatePref) {
+        mUpdatePref = updatePref;
+    }
+
     public void populateDisplay(Context context, Display display) {
         displayId = display.getDisplayId();
         populateDisplayName(context, display);
@@ -94,9 +101,9 @@ public class Config implements Parcelable {
         maxDisplayHeight = 0;
     }
 
-    public void populateDefaults() {
-        showLyrics = true;
-        showProgress = false;
+    public void populateDefaults(Context context) {
+        showLyrics = Configuration.getDefaultShowLyrics(context);
+        showProgress = Configuration.getDefaultShowProgress(context);
     }
 
     public String getDisplayName() {
@@ -129,8 +136,12 @@ public class Config implements Parcelable {
         return maxDisplayHeight;
     }
 
-    public void setShowLyrics(boolean b) {
+    public void setShowLyrics(Context context, boolean b) {
         showLyrics = b;
+
+        if (mUpdatePref) {
+            Configuration.setDefaultShowLyrics(context, b);
+        }
     }
 
     public boolean getShowLyrics() {
@@ -139,8 +150,12 @@ public class Config implements Parcelable {
         return showLyrics;
     }
 
-    public void setShowProgress(boolean b) {
+    public void setShowProgress(Context context, boolean b) {
         showProgress = b;
+
+        if (mUpdatePref) {
+            Configuration.setDefaultShowProgress(context, b);
+        }
     }
 
     public boolean getShowProgress() {
