@@ -1,5 +1,6 @@
 package com.daohoangson.chaocovietnam;
 
+import android.app.backup.BackupManager;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
@@ -12,11 +13,13 @@ public class Configuration {
     final public static String DATA_KEY_SECONDS = "s";
     final public static String DATA_KEY_NAME = "n";
 
+    final public static String PREF_NAME = "pref";
     final private static String PREF_SHOW_LYRICS = "showLyrics";
     final private static String PREF_SHOW_PROGRESS = "showProgress";
 
     public static void setDefaultShowLyrics(Context context, boolean showLyrics) {
         getSharedRef(context).edit().putBoolean(PREF_SHOW_LYRICS, showLyrics).apply();
+        requestBackup(context);
     }
 
     public static boolean getDefaultShowLyrics(Context context) {
@@ -25,6 +28,7 @@ public class Configuration {
 
     public static void setDefaultShowProgress(Context context, boolean showProgress) {
         getSharedRef(context).edit().putBoolean(PREF_SHOW_PROGRESS, showProgress).apply();
+        requestBackup(context);
     }
 
     public static boolean getDefaultShowProgress(Context context) {
@@ -32,6 +36,14 @@ public class Configuration {
     }
 
     private static SharedPreferences getSharedRef(Context context) {
-        return PreferenceManager.getDefaultSharedPreferences(context);
+        return context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+    }
+
+    private static void requestBackup(Context context) {
+        if (!BuildConfig.DEBUG) {
+            // only notify backup manager of data changed if we are running in release
+            // the backup key is valid for the release package only anyway
+            new BackupManager(context).dataChanged();
+        }
     }
 }

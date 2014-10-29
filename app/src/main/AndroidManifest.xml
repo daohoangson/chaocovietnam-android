@@ -10,9 +10,14 @@
 
     <application
         android:allowBackup="true"
+        android:backupAgent=".BackupAgent"
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"
         android:theme="@style/CCVN">
+        <meta-data
+            android:name="com.google.android.backup.api_key"
+            android:value="AEdPqrEAAAAIA9yQsPXSFp13a6wvJ5MAE1K0tqQWmFu0DQySpQ" />
+
         <activity
             android:name=".CCVN"
             android:label="@string/app_name">

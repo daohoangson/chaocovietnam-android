@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Chao co</string>
+    <string name="instruction">Tap to play, hold for options.</string>
     <string name="notification">Playing Vietnamese National Anthem</string>
-    <string name="instruction">Tap to play, drag to seek.</string>
 
     <string name="display_x">Display %1$s</string>
     <string name="show_lyrics">Show Lyrics</string>
