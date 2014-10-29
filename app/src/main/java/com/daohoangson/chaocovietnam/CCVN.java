@@ -179,8 +179,15 @@ public class CCVN extends FragmentActivity implements
     public void onBackPressed() {
         FragmentManager fragmentManager = getSupportFragmentManager();
         if (fragmentManager.getBackStackEntryCount() > 0) {
-            flipView();
+            getSupportFragmentManager().popBackStack();
             return;
+        }
+
+        if (mDrawerLayout != null && mDrawer != null) {
+            if (mDrawerLayout.isDrawerOpen(mDrawer)) {
+                mDrawerLayout.closeDrawer(mDrawer);
+                return;
+            }
         }
 
         super.onBackPressed();
@@ -233,23 +240,22 @@ public class CCVN extends FragmentActivity implements
 
     @Override
     public void flipView() {
-        if (mDrawer != null) {
-            // this layout has both fragments already, no need to flip
-            if (mDrawerLayout != null) {
-                if (mDrawerLayout.isDrawerOpen(mDrawer)) {
-                    mDrawerLayout.closeDrawer(mDrawer);
-                } else {
-                    mDrawerLayout.openDrawer(mDrawer);
-                }
-            }
+        if (mDrawerLayout != null && mDrawer != null) {
+            // this layout has drawer, open/close it instead of flipping
+            if (mDrawerLayout.isDrawerOpen(mDrawer)) {
+                mDrawerLayout.closeDrawer(mDrawer);
+            } else {
+                mDrawerLayout.openDrawer(mDrawer);
 
+                ((Vibrator) getSystemService(Context.VIBRATOR_SERVICE)).vibrate(10);
+            }
             return;
         }
 
         final FragmentManager fragmentManager = getSupportFragmentManager();
-
         if (fragmentManager.getBackStackEntryCount() > 0) {
-            getSupportFragmentManager().popBackStack();
+            // we have back stack, pop it
+            fragmentManager.popBackStack();
             return;
         }
 

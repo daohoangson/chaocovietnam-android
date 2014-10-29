@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">Chao co</string>
     <string name="instruction">Taper pour lire la musique, appuyer pour afficher plus</string>
-    <string name="notification">Écouter L'hymne National Vietnamien</string>
+    <string name="notification">Écouter L\'hymne National Vietnamien</string>
 
     <string name="display_x">Écran %1$s </string>
     <string name="show_lyrics">Afficher la parole</string>
