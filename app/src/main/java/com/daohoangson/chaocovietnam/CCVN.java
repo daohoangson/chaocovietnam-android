@@ -17,6 +17,7 @@ import android.os.Vibrator;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
+import android.support.v4.widget.DrawerLayout;
 import android.support.v7.media.MediaControlIntent;
 import android.support.v7.media.MediaRouteSelector;
 import android.support.v7.media.MediaRouter;
@@ -25,6 +26,7 @@ import android.util.SparseArray;
 import android.view.Display;
 import android.view.View;
 import android.widget.FrameLayout;
+import android.widget.LinearLayout;
 
 import com.daohoangson.chaocovietnam.adapter.ConfigAdapter;
 import com.daohoangson.chaocovietnam.service.AudioService;
@@ -45,6 +47,8 @@ public class CCVN extends FragmentActivity implements
     private AudioService.AudioServiceBinder mAudioService = null;
 
     private FrameLayout mContainer;
+    private DrawerLayout mDrawerLayout;
+    private LinearLayout mDrawer;
     private FlagFragment mFlagFragment;
 
     private int mContainerSystemUiVisibility = -1;
@@ -69,6 +73,9 @@ public class CCVN extends FragmentActivity implements
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR);
 
         mContainer = (FrameLayout) findViewById(R.id.container);
+
+        mDrawerLayout = (DrawerLayout) findViewById(R.id.drawerLayout);
+        mDrawer = (LinearLayout) findViewById(R.id.drawer);
 
         mLyrics.put(8.0f, R.string.lyrics_0080);
         mLyrics.put(11.5f, R.string.lyrics_0115);
@@ -221,24 +228,24 @@ public class CCVN extends FragmentActivity implements
     public void setConfigFragment(ConfigFragment configFragment) {
         if (configFragment != null) {
             configFragment.setListAdapter(mConfigAdapter);
-        } else {
-            // config fragment is closing, we need to apply the new configs
-            if (mFlagFragment != null) {
-                mFlagFragment.applyConfig(mConfigAdapter.getPrimaryConfig());
-            }
-
-            // for presentations too
-            for (int i = 0, l = mPresentations.size(); i < l; i++) {
-                int displayId = mPresentations.keyAt(i);
-                CcvnPresentation presentation = (CcvnPresentation) mPresentations.get(displayId);
-
-                presentation.applyConfig(mConfigAdapter.getPresentationConfig(displayId));
-            }
         }
     }
 
     @Override
     public void flipView() {
+        if (mDrawer != null) {
+            // this layout has both fragments already, no need to flip
+            if (mDrawerLayout != null) {
+                if (mDrawerLayout.isDrawerOpen(mDrawer)) {
+                    mDrawerLayout.closeDrawer(mDrawer);
+                } else {
+                    mDrawerLayout.openDrawer(mDrawer);
+                }
+            }
+
+            return;
+        }
+
         final FragmentManager fragmentManager = getSupportFragmentManager();
 
         if (fragmentManager.getBackStackEntryCount() > 0) {
@@ -330,10 +337,15 @@ public class CCVN extends FragmentActivity implements
 
     private void flagOnCreate(Bundle savedInstanceState) {
         if (savedInstanceState == null) {
-            getSupportFragmentManager()
+            FragmentTransaction fragmentTransaction = getSupportFragmentManager()
                     .beginTransaction()
-                    .add(R.id.container, new FlagFragment())
-                    .commit();
+                    .replace(R.id.container, new FlagFragment());
+
+            if (mDrawer != null) {
+                fragmentTransaction.replace(R.id.drawer, new ConfigFragment());
+            }
+
+            fragmentTransaction.commit();
         }
     }
 

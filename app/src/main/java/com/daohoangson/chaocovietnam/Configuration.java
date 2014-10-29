@@ -3,7 +3,6 @@ package com.daohoangson.chaocovietnam;
 import android.app.backup.BackupManager;
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.preference.PreferenceManager;
 
 public class Configuration {
     final public static int PORT = 25296 + 2;
