@@ -8,7 +8,6 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.ActivityInfo;
-import android.hardware.display.DisplayManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -21,7 +20,6 @@ import android.support.v4.widget.DrawerLayout;
 import android.support.v7.media.MediaControlIntent;
 import android.support.v7.media.MediaRouteSelector;
 import android.support.v7.media.MediaRouter;
-import android.util.Log;
 import android.util.SparseArray;
 import android.view.Display;
 import android.view.View;
@@ -43,6 +41,8 @@ public class CCVN extends FragmentActivity implements
         FlagFragment.Caller,
         ServiceConnection,
         SocketService.SocketServiceListener {
+
+    final private static String ARG_DRAWER_RENDERED = "drawerRendered";
 
     private AudioService.AudioServiceBinder mAudioService = null;
 
@@ -153,6 +153,10 @@ public class CCVN extends FragmentActivity implements
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
+
+        if (mDrawer != null) {
+            outState.putBoolean(ARG_DRAWER_RENDERED, true);
+        }
 
         mConfigAdapter.onSaveInstanceState(outState);
     }
@@ -342,17 +346,19 @@ public class CCVN extends FragmentActivity implements
     }
 
     private void flagOnCreate(Bundle savedInstanceState) {
-        if (savedInstanceState == null) {
-            FragmentTransaction fragmentTransaction = getSupportFragmentManager()
-                    .beginTransaction()
-                    .replace(R.id.container, new FlagFragment());
+        final FragmentTransaction fragmentTransaction = getSupportFragmentManager().beginTransaction();
 
+        if (savedInstanceState == null) {
+            fragmentTransaction.replace(R.id.container, new FlagFragment());
+        }
+
+        if (savedInstanceState == null || !savedInstanceState.containsKey(ARG_DRAWER_RENDERED)) {
             if (mDrawer != null) {
                 fragmentTransaction.replace(R.id.drawer, new ConfigFragment());
             }
-
-            fragmentTransaction.commit();
         }
+
+        fragmentTransaction.commit();
     }
 
     @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
